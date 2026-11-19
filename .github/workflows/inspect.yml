@@ -1,0 +1,12 @@
+name: inspect-versions
+on:
+  push:
+    paths: ['.github/workflows/inspect.yml']
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for a in com/github/librepdf/openpdf org/apache/pdfbox/pdfbox; do
+            echo "== $a"; curl -sS https://repo.maven.apache.org/maven2/$a/maven-metadata.xml | grep -E "<latest>|<release>" || echo "absent"
+          done
