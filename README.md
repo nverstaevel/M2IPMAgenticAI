@@ -13,7 +13,7 @@ Chaque dossier est un projet Maven autonome : il contient l'état complet de l'a
 | `td3-outils-externes` | Wikipedia, Excel, base externe, Google Agenda, expérience de contexte | écrit, CI verte (43 tests, sources simulées) |
 | `td4-agent-react` | Boucle ReAct écrite à la main, traces | écrit, CI verte (54 tests, modèle simulé) |
 | `td5-agents-roles` | Actor-critic (gardien du bestiaire), dossier PDF, superviseur | écrit, CI verte (modèle simulé) |
-| `td6-mise-a-l-epreuve` | Garde-fous, attaques, reproductibilité | à venir |
+| `td6-mise-a-l-epreuve` | Garde-fous, attaques, reproductibilité | écrit, CI verte (90 tests, modèle simulé) |
 
 Ne pas distribuer aux étudiants avant la fin du TD concerné.
 

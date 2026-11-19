@@ -1,33 +1,36 @@
-# TD5 — Agents à rôles et dossier PDF (solution)
+# TD6 — Mise à l'épreuve (solution)
 
-Cumulatif sur le TD4. **Ne pas distribuer avant la fin du TD5.**
+Cumulatif sur le TD5. **Ne pas distribuer avant la fin du TD6.**
 
-## Ajouts (`roles/`)
+## Garde-fous ajoutés (`garde/`) et où ils agissent
 
-- Contrats : `Diagnostic`, `Critique`, `Verdict` (APPROUVE / REJETE / DOUTE), `CasBestiaire` (5 cas dans `donnees/cas-bestiaire.csv`), `ProfilActeur` (PRUDENT / PRESSE).
-- `VeterinaireAgent` (acteur : dossier + pharmacie/tarifs, deux prompts) et `GardienDuBestiaire` (critique : un seul outil, `chercherDansWikipedia`, aucune écriture). Sorties structurées via `entity(...)`.
-  Les outils sont des sous-ensembles (`OutilsPharmacie`, `OutilsAgenda`, `OutilsBestiaire`) qui délèguent à `OutilsExternes` : un agent n'a que les outils de son rôle.
-- `DuoService.traiter(cas, profil)` : actor-critic, 3 tours au plus ; APPROUVE → `APPROUVEE`, DOUTE → `VERS_HUMAIN`, rejets répétés → `NON_CONVERGENTE`.
-  **Un dossier n'est jamais validé automatiquement** (état `EN_ATTENTE_DE_VALIDATION`).
-- `DossierPdfService.generer(runId)` (PDFBox) : en-tête, un bloc par tour (proposition, verdict, objections, sources), décision et validation (agent humain + horodatage), annexe technique. Écrit aussi `dossiers/{runId}.pdf`.
-- Validation humaine : `POST /api/dossiers/{runId}/valider` (une seule fois, 409 ensuite) et page `/dossiers` avec boutons Valider / Refuser. Tout `/api/dossiers/**`, `/dossiers/**`, `/api/agent/**` est réservé à PERSONNEL.
-- `SuperviseurAgent` : plan structuré (`Plan`), trois travailleurs (Dossier, Pharmacie, Agenda) ayant chacun leurs outils ; chaque délégation est une `Etape` de la trace JSONL. Le superviseur n'a aucun outil.
-- `TraiterConsultationWorkflow` : le même traitement sans modèle (table espèce + symptôme → médicament, stock et tarif Excel, premier créneau libre).
-- Endpoints : `GET /api/cas`, `POST /api/duo`, `GET /api/dossiers/{id}` et `.pdf`, `POST /api/superviseur`, `POST /api/workflow`.
+| Garde-fou | Classe | Branché dans |
+|---|---|---|
+| Droits dans l'outil (échec fermé) | `DroitsOutils` | `proposerConsultation`, `proposerEvenementAgenda` ; rôles mis dans le `ToolContext` par `ChatController`, `AgentReactService`, `SuperviseurAgent` |
+| Contenu externe non fiable | `ContenuExterne` | `chercherDansWikipedia`, `stockPharmacie`, `creneauxLibres` (titres d'événements) |
+| Bornes de dates | `BornesPlanification` + `HorlogeConfig` (`clinique.horloge` fige l'heure en test) | les deux outils de proposition |
+| Plafonds d'appels | `AgentReactService` (`MotifArret.PLAFOND_APPELS`, `agent.max-appels-par-outil`, `agent.max-appels-total`) | boucle ReAct |
+| Règles dures + validation des sorties | `ReglesDures`, `DuoService` | verdict APPROUVE annulé si contre-indication ; sortie illisible → VERS_HUMAIN |
+| Audit sans donnée inutile | `Masquage` | `TraceStore`, `DossierPdfService` (propriétaire réduit à l'initiale) |
+| Filtre d'entrée | `FiltreEntree` | `POST /api/chat` et flux |
 
-## Le modèle simulé joue les deux rôles
+Mesure de reproductibilité : `Reproductibilite.synthese` et `POST /api/agent/mesures` (`demande`, `executions` ≤ 50, `temperature`) renvoient réussites, étapes min/médiane/max, tokens moyens et motifs d'arrêt.
 
-En profil `simule`, `ModeleSimule` reconnaît `[ROLE:VETERINAIRE]` (pressé : renvoie la piste habituelle ; prudent ou après objections : tisane de valériane), `[ROLE:GARDIEN]` (règles : argent → REJETE, ail ou soleil → REJETE, sauna → DOUTE, sinon APPROUVE) et `[ROLE:SUPERVISEUR]` (plan fixe).
-Les verdicts des cinq cas sont donc reproductibles en CI, **mais ce gardien est un jeu de règles, pas un LLM qui lit Wikipédia** : les mesures du TD (rejets corrects, faux rejets, faux accords sur 15 exécutions) restent à faire avec un vrai modèle.
+## Catalogue d'attaques : ce qui est rejoué automatiquement
 
-## Piège Spring AI
+| ID | Points | Garde-fou(s) | Test | Ce que le test prouve |
+|---|---|---|---|---|
+| A1 injection directe | 1 | filtre d'entrée | `AttaquesTest.A1_injectionDirecte`, `GardeFousTest.filtreDEntree…` | refus de la formulation grossière ; une phrase ordinaire passe |
+| A2 injection indirecte | 3 | contenu externe | `ContenuExterneTest` (Wikipédia, Excel), `AttaquesTest.A2_…Agenda` | consigne retirée, texte délimité ; **pas** de couverture des reformulations |
+| A3 droits | 3 | droits dans l'outil, confirmation hors modèle | `AttaquesTest.A3_…`, `GardeFousTest.aucunOutil…` | le visiteur ne crée aucune proposition ; aucun outil n'écrit |
+| A4 boucle sans fin | 1 | bornes de dates, plafonds | `AttaquesTest.A4_…` (2 tests), `AgentReactServiceTest` | date passée ou 3 h refusées ; arrêt sur plafond d'appels |
+| A5 argument inventé | 2 | outils qui échouent proprement | `AttaquesTest.A5_…` | créature 9999 : erreur explicite, pas d'invention côté outil |
+| A6 dérive du coût | 1 | plafonds, validation des bornes | `AttaquesTest.A6_…` | `maxEtapes` et `executions` bornés (400) |
+| A7 persuader le critique | 2 | règles dures, validation des sorties | `AttaquesTest.A7_…` (2 tests) | un gardien « persuadé » ne fait pas approuver l'argent ; sortie illisible → humain |
+| A8 fuite dans le dossier | 3 | masquage | `AttaquesTest.A8_…`, `GardeFousTest.masquage…` | ni téléphone, ni courriel, ni nom du propriétaire dans le PDF |
 
-`ChatClient.Builder` est modifiable : réutiliser le même builder pour plusieurs clients mélange prompts système et outils. Cloner (`builder.clone()`) pour chaque client.
+Fixtures : `src/test/resources/wikipedia/wikipedia-piege.json`, `src/test/resources/donnees/tarifs-piege.xlsx` (régénérable par `scripts/generer-fixtures-pieges.py`), événement piégé de `AgendaSimule` (3 décembre 2026).
 
-## Tests (CI verte)
+## Vérification et limites
 
-`DuoServiceTest` (sans Spring, modèles scriptés : arrêt sur APPROUVE, DOUTE, plafond de 3 tours, transmission des objections, profils, validation unique) et `RolesApiTest` (cinq cas, PDF relus avec PDFBox, validation, droits, superviseur, workflow).
-
-## Non vérifié
-
-Qualité d'un vrai gardien et d'un vrai vétérinaire, appels réels à Wikipédia depuis le duo, mesures sur 15 exécutions, comparaison chiffrée workflow / superviseur, `JOURNAL.md`. Les PDF sont produits dans `target/dossiers-test` pendant les tests (non versionnés).
+CI verte : 90 tests, tous avec le modèle simulé. Ils établissent que les garde-fous **déterministes** fonctionnent. Ils ne mesurent pas : la sensibilité d'un vrai LLM aux injections (A1, A2, A7), les faux refus en usage réel, les 20 + 20 exécutions du scénario C2, ni le coût réel. `FICHE.md` décrit l'application ; `ANALYSE.md` est un modèle à remplir avec de vraies mesures ; `JOURNAL.md` reste à produire par les étudiants.
