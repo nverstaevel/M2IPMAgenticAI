@@ -5,13 +5,18 @@ cinq outils de lecture, sortie structurée, et une écriture sous confirmation h
 
 ## Lancer avec un vrai modèle
 
-```bash
-ollama pull qwen2.5:7b              # ou tout modèle qui gère l'appel d'outils
-mvn spring-boot:run                 # http://localhost:8080/chat  (gribouille/gribouille)
-```
+Deux starters Spring AI sont présents ; `spring.ai.model.chat` choisit celui qui est actif.
 
-Pour LM Studio ou un autre serveur, copier `application-local.yml.example` en `application-local.yml` (ignoré par Git).
-Pour que la conversation survive à un redémarrage : profil `persistant` (voir `application-persistant.properties`).
+| Serveur | Commande | Notes |
+|---|---|---|
+| **Ollama** (défaut) | `ollama pull qwen2.5:7b` puis `mvn spring-boot:run` | propriétés `spring.ai.ollama.*` |
+| **LM Studio** ou tout serveur compatible OpenAI | `mvn spring-boot:run -Dspring-boot.run.profiles=lmstudio` | propriétés `spring.ai.openai.*`, URL de base `http://localhost:1234/v1` |
+
+Le modèle doit gérer l'appel d'outils (tool calling). Pour changer de modèle ou de port sans toucher au dépôt :
+copier `application-local.yml.example` en `application-local.yml` (ignoré par Git) et ajouter le profil `local`
+(`-Dspring-boot.run.profiles=lmstudio,local`). Une API hébergée s'utilise comme LM Studio, avec son URL et sa clé
+dans une variable d'environnement (`OPENAI_API_KEY`), jamais dans Git ; surveillez le budget.
+Application : http://localhost:8080/chat (gribouille/gribouille). Profil `persistant` : voir `application-persistant.properties`.
 
 ## Lancer sans modèle (profil `simule`)
 
@@ -51,5 +56,7 @@ l'appel de l'outil NOM (par exemple `outil:rechercherProprietaires:{"nom":"brume
 
 ## Statut de vérification
 
-25 tests passent en intégration continue (modèle simulé). **Non vérifié** : le comportement avec un vrai modèle local
-(Ollama, LM Studio), c'est-à-dire la qualité des réponses, le flux SSE et les noms exacts des propriétés `spring.ai.ollama.*`.
+27 tests passent en intégration continue : modèle simulé pour la chaîne complète, et deux tests qui vérifient que Ollama
+(défaut) et le profil `lmstudio` câblent bien le bon `ChatModel` au démarrage, sans serveur.
+**Non vérifié** (aucun serveur de modèles dans l'environnement de rédaction) : un échange réel avec un modèle, c'est-à-dire
+la qualité des réponses, l'appel d'outils par un vrai modèle, le flux SSE, et l'URL exacte pour LM Studio (`/v1`).
