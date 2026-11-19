@@ -9,7 +9,7 @@ spring:
         model: qwen2.5:7b
         temperature: 0.3
     openai:
-      base-url: http://localhost:1234      # LM Studio ; pour une API hébergée : l'URL du fournisseur
+      base-url: http://localhost:1234/v1   # LM Studio ; pour une API hébergée : l'URL du fournisseur
       api-key: lm-studio                   # une vraie clé ne va JAMAIS dans Git
       chat:
         model: qwen2.5-7b-instruct
