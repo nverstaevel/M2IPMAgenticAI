@@ -27,7 +27,7 @@ import org.springframework.stereotype.Service;
 
 /**
  * Boucle ReAct écrite à la main : le ChatModel est appelé directement et ne lance jamais les outils
- * (internalToolExecutionEnabled=false) ; c'est cette classe qui exécute les outils, compte, trace et décide de s'arrêter.
+ * (en Spring AI 2.0 le modèle ne lance plus les outils, c'est le ToolCallingAdvisor) ; c'est cette classe qui exécute les outils, compte, trace et décide de s'arrêter.
  */
 @Service
 public class AgentReactService {
@@ -73,7 +73,6 @@ public class AgentReactService {
     public ResultatAgent executer(String runId, String demande, int maxEtapes) {
         ToolCallingChatOptions options = ToolCallingChatOptions.builder()
                 .toolCallbacks(outils)
-                .internalToolExecutionEnabled(false)
                 .toolContext(Map.of("conversationId", runId))
                 .build();
         Prompt prompt = new Prompt(List.<Message>of(new SystemMessage(PROMPT_SYSTEME), new UserMessage(demande)), options);
