@@ -6,6 +6,8 @@ import org.springframework.ai.chat.client.advisor.SimpleLoggerAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.ChatMemoryRepository;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
+import org.springframework.ai.model.tool.ToolCallingChatOptions;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -27,9 +29,21 @@ public class ChatConfig {
                 .build();
     }
 
+    /**
+     * Profil « simule » seulement : le ToolCallingAdvisor ignore toute requête dont les options ne sont pas des
+     * ToolCallingChatOptions. Un vrai modèle (Ollama…) fournit ce type d'options lui-même ; le faux modèle non.
+     */
+    @Bean
+    @org.springframework.context.annotation.Profile("simule")
+    ToolCallingChatOptions optionsDuModeleSimule() {
+        return ToolCallingChatOptions.builder().build();
+    }
+
     @Bean
     @org.springframework.context.annotation.Primary
-    ChatClient drGribouille(ChatClient.Builder builder, ChatMemory memoire, OutilsClinique outils) {
+    ChatClient drGribouille(ChatClient.Builder builder, ChatMemory memoire, OutilsClinique outils,
+                            ObjectProvider<ToolCallingChatOptions> options) {
+        options.ifAvailable(builder::defaultOptions);
         return builder
                 .defaultSystem(PromptsGribouille.BASE)
                 .defaultAdvisors(
