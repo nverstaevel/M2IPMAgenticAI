@@ -25,6 +25,7 @@ public class WikipediaClient {
     private final RestClient client;
     private final JsonMapper json = JsonMapper.builder().build();
 
+    @org.springframework.beans.factory.annotation.Autowired
     public WikipediaClient(@Value("${wikipedia.base-url:https://fr.wikipedia.org/api/rest_v1}") String baseUrl,
                            @Value("${wikipedia.user-agent:CliniqueFantastique/1.0 (cours M2 MIAGE; contact@example.org)}") String userAgent) {
         this(RestClient.builder().baseUrl(baseUrl)

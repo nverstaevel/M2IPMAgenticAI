@@ -50,7 +50,7 @@ class WikipediaClientTest {
 
     @Test
     void pageDHomonymie() throws Exception {
-        serveur.expect(requestTo("http://wiki.test/api/page/summary/Phénix"))
+        serveur.expect(requestTo("http://wiki.test/api/page/summary/Ph%C3%A9nix"))
                 .andRespond(withSuccess(fixture("wikipedia-homonymie.json"), MediaType.APPLICATION_JSON));
         assertThatThrownBy(() -> client.resume("Phénix")).isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("homonymie");
