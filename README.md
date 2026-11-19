@@ -4,16 +4,16 @@ Solutions (enseignant) des six TD du cours d'introduction aux IA agentiques, M2 
 (Université Toulouse Capitole). Fil rouge : la clinique des créatures fantastiques du Dr Gribouille.
 
 Chaque dossier est un projet Maven autonome : il contient l'état complet de l'application
-à la fin du TD correspondant, et le TD N reprend le code du TD N-1. Un tag `tdN` marque chaque étape.
+à la fin du TD correspondant, et le TD N reprend le code du TD N-1. Le dossier `tdN-…` est l'état de référence à la fin du TD N.
 
-| Dossier | Contenu | Tag |
+| Dossier | Contenu | Statut |
 |---|---|---|
-| `td1-clinique` | Application Spring Boot classique (JPA, services, API REST) | `td1` |
-| `td2-chat` | Chat interrogeant l'application (ChatClient, mémoire, outils internes) | `td2` |
-| `td3-outils-externes` | Wikipedia, Excel, base externe, Google Agenda, expérience de contexte | `td3` |
-| `td4-agent-react` | Boucle ReAct écrite à la main, traces | `td4` |
-| `td5-agents-roles` | Actor-critic (gardien du bestiaire), dossier PDF, superviseur | `td5` |
-| `td6-mise-a-l-epreuve` | Garde-fous, attaques, reproductibilité | `td6` |
+| `td1-clinique` | Application Spring Boot classique (JPA, services, API REST) | écrit |
+| `td2-chat` | Chat interrogeant l'application (ChatClient, mémoire, outils internes) | à venir |
+| `td3-outils-externes` | Wikipedia, Excel, base externe, Google Agenda, expérience de contexte | à venir |
+| `td4-agent-react` | Boucle ReAct écrite à la main, traces | à venir |
+| `td5-agents-roles` | Actor-critic (gardien du bestiaire), dossier PDF, superviseur | à venir |
+| `td6-mise-a-l-epreuve` | Garde-fous, attaques, reproductibilité | à venir |
 
 Ne pas distribuer aux étudiants avant la fin du TD concerné.
 
