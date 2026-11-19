@@ -1,41 +1,55 @@
-# TD1 — La clinique des créatures fantastiques (corrigé)
+# TD2 — Un chat qui interroge l'application (corrigé)
 
-Application Spring Boot « classique » sans IA : JPA, couche service, API REST, pages Thymeleaf,
-sécurité et tests. Les TD suivants branchent un modèle de langage sur ces services.
+Reprend le TD1 et y branche un modèle avec Spring AI 2.0 : `ChatClient` (Dr Gribouille), mémoire de conversation,
+cinq outils de lecture, sortie structurée, et une écriture sous confirmation humaine.
 
-## Lancer
+## Lancer avec un vrai modèle
 
 ```bash
-mvn spring-boot:run     # http://localhost:8080  (gribouille/gribouille ou visiteur/visiteur)
-mvn verify              # tests
+ollama pull qwen2.5:7b              # ou tout modèle qui gère l'appel d'outils
+mvn spring-boot:run                 # http://localhost:8080/chat  (gribouille/gribouille)
 ```
 
-Java 21, Spring Boot 4.0, base H2 en mémoire rechargée par `data.sql` à chaque démarrage.
+Pour LM Studio ou un autre serveur, copier `application-local.yml.example` en `application-local.yml` (ignoré par Git).
+Pour que la conversation survive à un redémarrage : profil `persistant` (voir `application-persistant.properties`).
 
-## Architecture
+## Lancer sans modèle (profil `simule`)
 
-| Package | Rôle |
+```bash
+mvn spring-boot:run -Dspring-boot.run.profiles=simule
+```
+
+`ModeleSimule` répond de façon déterministe : « Simulé : … », un triage fixe, et `outil:NOM:{json}` déclenche
+l'appel de l'outil NOM (par exemple `outil:rechercherProprietaires:{"nom":"brume"}`). Les tests l'utilisent.
+
+## Contenu
+
+| Élément | Fichier |
 |---|---|
-| `domain` | entités JPA (Proprietaire, Espece, Creature, Soigneur, Consultation) |
-| `repository` | Spring Data ; verrou pessimiste sur le soigneur pour la planification |
-| `service` | `CliniqueService` : signatures imposées par le sujet, exceptions métier |
-| `controller` | `ApiController` (JSON, DTO), `ApiExceptionHandler` (404/400/409), `WebController` (Thymeleaf) |
-| `dto` | records exposés ; les entités ne sortent jamais de la couche service |
-| `config` | `SecurityConfig` : formulaire + basic, rôles PERSONNEL et LECTURE |
+| Prompt système (base et variante stricte) | `ai/PromptsGribouille` |
+| `ChatClient` + mémoire (fenêtre de 10 messages, dépôt JDBC) + `SimpleLoggerAdvisor` | `ai/ChatConfig` |
+| Cinq outils de lecture + `proposerConsultation` | `ai/OutilsClinique` |
+| Proposition → confirmation (expire à 10 min) | `ai/PropositionService`, `ChatController#confirmer` |
+| Chat, flux SSE, triage structuré | `controller/ChatController`, `templates/chat.html` |
+| Faux modèle | `ai/ModeleSimule` |
 
-## Choix de correction
+## Points de correction
 
-- Chevauchement : deux consultations d'un même soigneur dont les débuts sont distants de moins de 30 min.
-  Les créneaux adjacents (exactement 30 min) sont acceptés.
-- Concurrence : `SELECT … FOR UPDATE` sur le soigneur (`findByIdPourPlanification`) sérialise les planifications.
-  Une contrainte en base ne suffit pas (pas de contrainte d'intervalle portable) ; c'est la réponse à la question 2 du sujet.
-- Erreurs : 404 (ressource absente), 400 (validation, diagnostic déjà saisi), 409 (conflit de créneau).
-  Le corps est un `ProblemDetail` dont le champ `detail` est une phrase française lisible.
-- Les identifiants sont générés ; `data.sql` résout les clés étrangères par nom (pas d'ids en dur).
-- Pas de console H2 (module séparé dans Spring Boot 4) : inspectez les données via l'API.
-- Mots de passe en clair = identifiants : uniquement pour le TD.
+- **Aucun outil ne confirme.** `PropositionService.confirmer` n'est appelé que par `POST /api/propositions/{id}/confirmer`,
+  réservé au rôle PERSONNEL.
+- **Le modèle ne voit pas le téléphone** : les outils renvoient `ProprietaireVue` (réponse à la question 3 du sujet).
+- **Conflit de créneau** : `proposerConsultation` vérifie la disponibilité sans écrire ; le message d'erreur du TD1
+  (« Le soigneur 1 (…) est déjà pris le 12/03 à 14h10 … ») remonte au modèle comme résultat d'outil.
+- **Triage** : client séparé, sans mémoire ni outils (la mémoire exige un identifiant de conversation).
+- **`ToolContext`** : l'identifiant de conversation est transmis à l'outil hors du prompt.
+
+## Spring AI 2.0 : deux pièges rencontrés
+
+- La boucle d'outils est dans le `ToolCallingAdvisor` du `ChatClient`, plus dans le `ChatModel`. Elle ignore toute requête dont
+  les options ne sont pas des `ToolCallingChatOptions`.
+- Le `ChatClient` part de `chatModel.getOptions()` (et non `getDefaultOptions()`) : un `ChatModel` maison doit surcharger `getOptions()`.
 
 ## Statut de vérification
 
-Ce code a été écrit sans pouvoir être compilé dans l'environnement de rédaction (Maven Central inaccessible).
-La vérification est faite par l'intégration continue du dépôt (`mvn verify`).
+25 tests passent en intégration continue (modèle simulé). **Non vérifié** : le comportement avec un vrai modèle local
+(Ollama, LM Studio), c'est-à-dire la qualité des réponses, le flux SSE et les noms exacts des propriétés `spring.ai.ollama.*`.
