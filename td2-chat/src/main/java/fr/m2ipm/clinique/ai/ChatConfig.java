@@ -35,15 +35,15 @@ public class ChatConfig {
      */
     @Bean
     @org.springframework.context.annotation.Profile("simule")
-    ToolCallingChatOptions optionsDuModeleSimule() {
-        return ToolCallingChatOptions.builder().build();
+    ToolCallingChatOptions.Builder<?> optionsDuModeleSimule() {
+        return ToolCallingChatOptions.builder();
     }
 
     @Bean
     @org.springframework.context.annotation.Primary
     ChatClient drGribouille(ChatClient.Builder builder, ChatMemory memoire, OutilsClinique outils,
-                            ObjectProvider<ToolCallingChatOptions> options) {
-        options.ifAvailable(builder::defaultOptions);
+                            ObjectProvider<ToolCallingChatOptions.Builder<?>> options) {
+        options.ifAvailable(o -> builder.defaultOptions(o));
         return builder
                 .defaultSystem(PromptsGribouille.BASE)
                 .defaultAdvisors(
