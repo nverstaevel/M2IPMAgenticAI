@@ -12,7 +12,7 @@ Chaque dossier est un projet Maven autonome : il contient l'état complet de l'a
 | `td2-chat` | Chat interrogeant l'application (ChatClient, mémoire, outils internes) | écrit, CI verte (modèle simulé) |
 | `td3-outils-externes` | Wikipedia, Excel, base externe, Google Agenda, expérience de contexte | écrit, CI verte (43 tests, sources simulées) |
 | `td4-agent-react` | Boucle ReAct écrite à la main, traces | écrit, CI verte (54 tests, modèle simulé) |
-| `td5-agents-roles` | Actor-critic (gardien du bestiaire), dossier PDF, superviseur | à venir |
+| `td5-agents-roles` | Actor-critic (gardien du bestiaire), dossier PDF, superviseur | écrit, CI verte (modèle simulé) |
 | `td6-mise-a-l-epreuve` | Garde-fous, attaques, reproductibilité | à venir |
 
 Ne pas distribuer aux étudiants avant la fin du TD concerné.

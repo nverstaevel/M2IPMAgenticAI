@@ -1,27 +1,33 @@
-# TD4 — Agent ReAct (solution)
+# TD5 — Agents à rôles et dossier PDF (solution)
 
-Cumulatif sur le TD3. **Ne pas distribuer avant la fin du TD4.**
+Cumulatif sur le TD4. **Ne pas distribuer avant la fin du TD5.**
 
-## Ce qui est ajouté (`agent/`)
+## Ajouts (`roles/`)
 
-- `AgentReactService.executer(demande, maxEtapes)` : boucle écrite à la main. Le `ChatModel` est appelé directement, les outils sont exécutés par `ToolCallingManager`.
-  Arrêts : `REPONSE_FINALE`, `PLAFOND_ETAPES`, `BUDGET_TOKENS` (`agent.budget-tokens`), `BOUCLE_DETECTEE` (même outil + mêmes arguments deux fois de suite : le second appel n'est pas exécuté), `ERREUR`.
-- `Etape` (numéro, raisonnement, outil, arguments JSON, résultat tronqué à 500 caractères, durée, tokens) et `ResultatAgent`.
-- `TraceStore` : `traces/{runId}.jsonl`, une ligne par étape (`agent.traces.dir`). Le runId est validé (pas de traversée de répertoire).
-- `POST /api/agent` (`{demande, maxEtapes}` → `{runId, resultat}`) et `GET /api/agent/{runId}/trace`, **réservés au rôle PERSONNEL** (coût, et traces contenant des données du dossier).
-- `POST /api/agent/framework` : mêmes outils et même prompt via `ChatClient` (boucle du framework), pour la comparaison du §5.
-- Les outils d'écriture restent des propositions (TD2/TD3) ; le `runId` sert d'identifiant de conversation dans le `ToolContext`.
+- Contrats : `Diagnostic`, `Critique`, `Verdict` (APPROUVE / REJETE / DOUTE), `CasBestiaire` (5 cas dans `donnees/cas-bestiaire.csv`), `ProfilActeur` (PRUDENT / PRESSE).
+- `VeterinaireAgent` (acteur : dossier + pharmacie/tarifs, deux prompts) et `GardienDuBestiaire` (critique : un seul outil, `chercherDansWikipedia`, aucune écriture). Sorties structurées via `entity(...)`.
+  Les outils sont des sous-ensembles (`OutilsPharmacie`, `OutilsAgenda`, `OutilsBestiaire`) qui délèguent à `OutilsExternes` : un agent n'a que les outils de son rôle.
+- `DuoService.traiter(cas, profil)` : actor-critic, 3 tours au plus ; APPROUVE → `APPROUVEE`, DOUTE → `VERS_HUMAIN`, rejets répétés → `NON_CONVERGENTE`.
+  **Un dossier n'est jamais validé automatiquement** (état `EN_ATTENTE_DE_VALIDATION`).
+- `DossierPdfService.generer(runId)` (PDFBox) : en-tête, un bloc par tour (proposition, verdict, objections, sources), décision et validation (agent humain + horodatage), annexe technique. Écrit aussi `dossiers/{runId}.pdf`.
+- Validation humaine : `POST /api/dossiers/{runId}/valider` (une seule fois, 409 ensuite) et page `/dossiers` avec boutons Valider / Refuser. Tout `/api/dossiers/**`, `/dossiers/**`, `/api/agent/**` est réservé à PERSONNEL.
+- `SuperviseurAgent` : plan structuré (`Plan`), trois travailleurs (Dossier, Pharmacie, Agenda) ayant chacun leurs outils ; chaque délégation est une `Etape` de la trace JSONL. Le superviseur n'a aucun outil.
+- `TraiterConsultationWorkflow` : le même traitement sans modèle (table espèce + symptôme → médicament, stock et tarif Excel, premier créneau libre).
+- Endpoints : `GET /api/cas`, `POST /api/duo`, `GET /api/dossiers/{id}` et `.pdf`, `POST /api/superviseur`, `POST /api/workflow`.
 
-## Notes Spring AI 2.0
+## Le modèle simulé joue les deux rôles
 
-- `ToolCallingChatOptions.Builder` n'a plus `internalToolExecutionEnabled` : le modèle n'exécute jamais les outils, la boucle vit dans le `ToolCallingAdvisor`. Le repère de code du sujet reste valable.
-- Tokens : valeur annoncée par le serveur si présente, sinon estimation à 1 pour 4 caractères (le modèle simulé n'en annonce pas).
-- `maxTotalToolCalls` / `maxCallsPerTool` du `ToolCallingManager` : non utilisés ici (API non vérifiée en 2.0) ; c'est l'exercice de comparaison.
+En profil `simule`, `ModeleSimule` reconnaît `[ROLE:VETERINAIRE]` (pressé : renvoie la piste habituelle ; prudent ou après objections : tisane de valériane), `[ROLE:GARDIEN]` (règles : argent → REJETE, ail ou soleil → REJETE, sauna → DOUTE, sinon APPROUVE) et `[ROLE:SUPERVISEUR]` (plan fixe).
+Les verdicts des cinq cas sont donc reproductibles en CI, **mais ce gardien est un jeu de règles, pas un LLM qui lit Wikipédia** : les mesures du TD (rejets corrects, faux rejets, faux accords sur 15 exécutions) restent à faire avec un vrai modèle.
 
-## Tests (54 au total, CI verte)
+## Piège Spring AI
 
-`AgentReactServiceTest` (sans Spring : modèle scripté, outil factice) couvre réponse finale, plafond, boucle détectée, budget, erreur, trace JSONL et croissance de l'historique ; `AgentApiTest` : chaîne complète avec le modèle simulé, droits, framework.
+`ChatClient.Builder` est modifiable : réutiliser le même builder pour plusieurs clients mélange prompts système et outils. Cloner (`builder.clone()`) pour chaque client.
+
+## Tests (CI verte)
+
+`DuoServiceTest` (sans Spring, modèles scriptés : arrêt sur APPROUVE, DOUTE, plafond de 3 tours, transmission des objections, profils, validation unique) et `RolesApiTest` (cinq cas, PDF relus avec PDFBox, validation, droits, superviseur, workflow).
 
 ## Non vérifié
 
-Comportement d'un vrai LLM sur C1–C3, variance des traces, `traces/` des neuf exécutions et `JOURNAL.md` (catalogue des échecs) : à produire par les étudiants avec Ollama/LM Studio.
+Qualité d'un vrai gardien et d'un vrai vétérinaire, appels réels à Wikipédia depuis le duo, mesures sur 15 exécutions, comparaison chiffrée workflow / superviseur, `JOURNAL.md`. Les PDF sont produits dans `target/dossiers-test` pendant les tests (non versionnés).
