@@ -17,6 +17,18 @@ Chaque dossier est un projet Maven autonome : il contient l'état complet de l'a
 
 Ne pas distribuer aux étudiants avant la fin du TD concerné.
 
+## Ouvrir les projets dans Spring Tools (Eclipse) ou IntelliJ
+
+Le dépôt n'est pas un projet unique : chaque dossier `tdN-…` est un projet Maven autonome, et le `pom.xml` à la racine n'est qu'un agrégateur.
+
+- **Spring Tools / Eclipse** : `File > Import > Maven > Existing Maven Projects`, racine = le dossier cloné, cocher les projets voulus (ou un seul `tdN-…`). Ne pas utiliser « Import existing projects » ni « General project » : il n'y a pas de fichier `.project` dans le dépôt.
+- **Java** : JDK 21 requis (`Window > Preferences > Java > Installed JREs`). Spring Boot 4 demande une version récente de Spring Tools (Eclipse 2025 ou plus).
+- **IntelliJ** : ouvrir le `pom.xml` racine (ou celui d'un TD) comme projet.
+- Après l'import : `Maven > Update Project…` (Alt+F5), cocher « Force Update ».
+- Lancer : classe `CliniqueApplication` (`Run As > Spring Boot App`), ou `mvn spring-boot:run` dans le dossier du TD.
+
+Les six projets ont des noms distincts (`clinique-td1` à `clinique-td6`) : Eclipse refuse deux projets du même nom dans un espace de travail.
+
 ## Vérification
 
 Le workflow GitHub Actions (`.github/workflows/ci.yml`) lance `mvn verify` sur chaque dossier.

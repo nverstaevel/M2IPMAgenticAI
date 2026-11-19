@@ -11,9 +11,9 @@
   </parent>
 
   <groupId>fr.m2ipm</groupId>
-  <artifactId>clinique-fantastique</artifactId>
+  <artifactId>clinique-td6</artifactId>
   <version>1.0.0-td6</version>
-  <name>clinique-fantastique (TD6)</name>
+  <name>clinique-td6</name>
 
   <properties>
     <java.version>21</java.version>

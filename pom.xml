@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!-- Agrégateur : sert uniquement à ouvrir les six TD d'un coup dans l'IDE (Spring Tools, Eclipse, IntelliJ).
+       Chaque dossier tdN reste un projet autonome, avec son propre pom.xml. -->
+  <groupId>fr.m2ipm</groupId>
+  <artifactId>m2ipm-agentic-ai</artifactId>
+  <version>1.0.0</version>
+  <packaging>pom</packaging>
+  <name>m2ipm-agentic-ai</name>
+
+  <modules>
+    <module>td1-clinique</module>
+    <module>td2-chat</module>
+    <module>td3-outils-externes</module>
+    <module>td4-agent-react</module>
+    <module>td5-agents-roles</module>
+    <module>td6-mise-a-l-epreuve</module>
+  </modules>
+</project>
