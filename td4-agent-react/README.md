@@ -1,50 +1,27 @@
-# TD3 — Outils reliés au monde extérieur (solution)
+# TD4 — Agent ReAct (solution)
 
-Projet cumulatif : tout le TD2 (chat, mémoire, propositions) + quatre sources externes et une expérience de contexte.
-**Ne pas distribuer avant la fin du TD3.**
+Cumulatif sur le TD3. **Ne pas distribuer avant la fin du TD4.**
 
-## Outils ajoutés (`externe/OutilsExternes`)
+## Ce qui est ajouté (`agent/`)
 
-| Outil | Source | Remarques |
-|---|---|---|
-| `chercherDansWikipedia(titre)` | API REST de Wikipédia FR | User-Agent explicite, résumé tronqué à 1500 caractères, page absente ou d'homonymie expliquée au modèle, texte étiqueté « source externe non fiable » |
-| `consulterTarif(acte, espece)` | classeur Excel (feuille Tarifs) | lu **une seule fois** au démarrage (Apache POI), recherche insensible à la casse et aux accents |
-| `stockPharmacie(medicament)` | classeur Excel (feuille Pharmacie) | idem ; signale les ruptures |
-| `chercherMedicament(nom, espece)` | seconde base H2 (catalogue) | second `DataSource` + `@Qualifier`, requêtes paramétrées uniquement (jamais de SQL écrit par le modèle) |
-| `creneauxLibres(jour)` | agenda (`AgendaPort`) | créneaux de 30 min entre 9 h et 18 h |
-| `proposerEvenementAgenda(creatureId, dateHeure, motif)` | agenda | **n'écrit rien** ; la confirmation passe par `POST /api/propositions-agenda/{id}/confirmer` (rôle PERSONNEL), même principe qu'au TD2 |
+- `AgentReactService.executer(demande, maxEtapes)` : boucle écrite à la main. Le `ChatModel` est appelé directement, les outils sont exécutés par `ToolCallingManager`.
+  Arrêts : `REPONSE_FINALE`, `PLAFOND_ETAPES`, `BUDGET_TOKENS` (`agent.budget-tokens`), `BOUCLE_DETECTEE` (même outil + mêmes arguments deux fois de suite : le second appel n'est pas exécuté), `ERREUR`.
+- `Etape` (numéro, raisonnement, outil, arguments JSON, résultat tronqué à 500 caractères, durée, tokens) et `ResultatAgent`.
+- `TraceStore` : `traces/{runId}.jsonl`, une ligne par étape (`agent.traces.dir`). Le runId est validé (pas de traversée de répertoire).
+- `POST /api/agent` (`{demande, maxEtapes}` → `{runId, resultat}`) et `GET /api/agent/{runId}/trace`, **réservés au rôle PERSONNEL** (coût, et traces contenant des données du dossier).
+- `POST /api/agent/framework` : mêmes outils et même prompt via `ChatClient` (boucle du framework), pour la comparaison du §5.
+- Les outils d'écriture restent des propositions (TD2/TD3) ; le `runId` sert d'identifiant de conversation dans le `ToolContext`.
 
-Chaque outil renvoie du texte lisible, y compris en cas d'échec : le modèle peut dire « je n'ai pas trouvé » au lieu de recevoir une exception.
+## Notes Spring AI 2.0
 
-## Agenda : port et adaptateurs
+- `ToolCallingChatOptions.Builder` n'a plus `internalToolExecutionEnabled` : le modèle n'exécute jamais les outils, la boucle vit dans le `ToolCallingAdvisor`. Le repère de code du sujet reste valable.
+- Tokens : valeur annoncée par le serveur si présente, sinon estimation à 1 pour 4 caractères (le modèle simulé n'en annonce pas).
+- `maxTotalToolCalls` / `maxCallsPerTool` du `ToolCallingManager` : non utilisés ici (API non vérifiée en 2.0) ; c'est l'exercice de comparaison.
 
-`AgendaPort` (interface) → `AgendaSimule` (défaut, en mémoire, 3 déc. 2026 à 10 h et 14 h 30 occupés) ou `GoogleAgendaAdapter`
-(compte de service, API REST v3, agenda **de test**, aucun invité). Choix par `agenda.mode=simule|google`.
-Pour Google : `agenda.mode=google`, `agenda.google.calendar-id=…`, `agenda.google.credentials-file=/chemin/service-account.json`
-(fichier hors Git, agenda partagé avec l'adresse du compte de service).
+## Tests (54 au total, CI verte)
 
-## Deux bases de données
+`AgentReactServiceTest` (sans Spring : modèle scripté, outil factice) couvre réponse finale, plafond, boucle détectée, budget, erreur, trace JSONL et croissance de l'historique ; `AgentApiTest` : chaîne complète avec le modèle simulé, droits, framework.
 
-Dès qu'on déclare un `DataSource`, Spring Boot ne configure plus celui de la clinique : `CatalogueConfig` déclare donc les deux
-(la clinique en `@Primary`). Le catalogue n'expose pas de `JdbcTemplate` (il remplacerait celui de la mémoire de conversation) mais un
-`JdbcClient` qualifié. Piège rencontré en CI : sans `generateUniqueName(true)`, deux contextes de test partageaient la même base mémoire.
+## Non vérifié
 
-## Expérience de contexte (`experience/`)
-
-`ExperienceContexte` compare deux stratégies sur `questions-reference.csv` (10 questions, faits cachés dans `grand-bestiaire.txt`, ≈180 000 caractères) :
-A = tout le texte dans le prompt (tronqué à `tailleMax`), B = outil de recherche (≤ 3 passages de 800 caractères).
-Variations : position du passage (début/milieu/fin) × bruit (aucun/moitié/double). Mesures écrites en CSV
-(`question;strategie;position;bruit;jetons_entree;jetons_sortie;latence_ms;cout_estime;exactitude`), jetons estimés à 1 pour 4 caractères, coût fictif.
-Le modèle est un `Function<String,String>` : brancher `triageClient` (sans mémoire ni outils) pour une vraie mesure.
-**Les tests utilisent un faux modèle qui recopie son prompt : ils valident la mécanique, pas la qualité d'un vrai LLM. Un `mesures.csv` réel est à produire avec Ollama/LM Studio.**
-La stratégie C (similarité vectorielle en mémoire) est laissée en option aux étudiants.
-
-## Données et scripts
-
-`scripts/generer-xlsx.py` (classeur), `scripts/generer-bestiaire.py` (corpus + questions, graine fixe), `src/main/resources/donnees/catalogue-medicaments.sql`.
-Tout est synthétique (créatures et tarifs fictifs).
-
-## Vérification
-
-`mvn verify` en CI GitHub : 43 tests verts (modèle simulé, Wikipédia simulé par `MockRestServiceServer`, agenda simulé).
-**Non vérifié** : appel réel à Wikipédia, à Google Agenda, comportement d'un vrai LLM face aux six outils.
+Comportement d'un vrai LLM sur C1–C3, variance des traces, `traces/` des neuf exécutions et `JOURNAL.md` (catalogue des échecs) : à produire par les étudiants avec Ollama/LM Studio.
