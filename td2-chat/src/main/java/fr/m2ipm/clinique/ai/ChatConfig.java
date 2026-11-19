@@ -18,7 +18,17 @@ public class ChatConfig {
         return MessageWindowChatMemory.builder().chatMemoryRepository(repository).maxMessages(10).build();
     }
 
+    /** Client sans mémoire ni outils : le triage est un appel isolé, sans identifiant de conversation. */
     @Bean
+    ChatClient triageClient(ChatClient.Builder builder) {
+        return builder
+                .defaultSystem("Tu es l'infirmier de tri de la clinique des créatures fantastiques. "
+                        + "Résume la demande et estime l'urgence.")
+                .build();
+    }
+
+    @Bean
+    @org.springframework.context.annotation.Primary
     ChatClient drGribouille(ChatClient.Builder builder, ChatMemory memoire, OutilsClinique outils) {
         return builder
                 .defaultSystem(PromptsGribouille.BASE)

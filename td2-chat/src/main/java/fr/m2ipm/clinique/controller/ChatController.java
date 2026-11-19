@@ -26,10 +26,13 @@ public class ChatController {
     public record TriageRequest(@NotBlank(message = "texte est obligatoire") String texte) {}
 
     private final ChatClient chat;
+    private final ChatClient triage;
     private final PropositionService propositions;
 
-    public ChatController(ChatClient chat, PropositionService propositions) {
+    public ChatController(ChatClient chat, @org.springframework.beans.factory.annotation.Qualifier("triageClient") ChatClient triage,
+                          PropositionService propositions) {
         this.chat = chat;
+        this.triage = triage;
         this.propositions = propositions;
     }
 
@@ -58,9 +61,7 @@ public class ChatController {
     /** Texte libre en entrée, record Java en sortie : le modèle remplit la structure. */
     @PostMapping("/triage")
     public TriageResultat triage(@Valid @RequestBody TriageRequest requete) {
-        return chat.prompt()
-                .system("Tu es l'infirmier de tri de la clinique des créatures fantastiques. "
-                        + "Résume la demande et estime l'urgence.")
+        return triage.prompt()
                 .user(requete.texte())
                 .call()
                 .entity(TriageResultat.class);
