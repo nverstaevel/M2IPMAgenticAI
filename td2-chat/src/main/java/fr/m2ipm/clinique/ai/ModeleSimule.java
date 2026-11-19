@@ -33,9 +33,6 @@ public class ModeleSimule implements ChatModel {
     @Override
     public ChatResponse call(Prompt prompt) {
         List<Message> messages = prompt.getInstructions();
-        org.slf4j.LoggerFactory.getLogger(ModeleSimule.class).warn("DIAG messages={} options={}",
-                messages.stream().map(m -> m.getClass().getSimpleName() + ":" + m.getText()).toList(),
-                prompt.getOptions() == null ? null : prompt.getOptions().getClass().getSimpleName());
         Message dernier = messages.get(messages.size() - 1);
         if (dernier instanceof ToolResponseMessage retour) {
             String donnees = retour.getResponses().stream()
@@ -58,8 +55,12 @@ public class ModeleSimule implements ChatModel {
         return reponse("Simulé : " + texte);
     }
 
+    /**
+     * Spring AI 2.0 : le ChatClient part de {@code chatModel.getOptions()}. Sans options « tool calling »,
+     * le ToolCallingAdvisor ignore la requête et la boucle d'outils ne démarre pas.
+     */
     @Override
-    public ChatOptions getDefaultOptions() {
+    public ChatOptions getOptions() {
         return ToolCallingChatOptions.builder().build();
     }
 
