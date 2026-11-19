@@ -1,0 +1,12 @@
+name: inspect-versions
+on:
+  push:
+    paths: ['.github/workflows/inspect.yml']
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for a in org/apache/poi/poi-ooxml com/google/auth/google-auth-library-oauth2-http com/openpdf/openpdf org/apache/pdfbox/pdfbox; do
+            echo "== $a"; curl -sSf https://repo.maven.apache.org/maven2/$a/maven-metadata.xml | grep -E "<latest>|<release>"
+          done
