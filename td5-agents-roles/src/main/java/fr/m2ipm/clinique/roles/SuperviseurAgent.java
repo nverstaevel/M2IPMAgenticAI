@@ -33,13 +33,14 @@ public class SuperviseurAgent {
     private final Map<Plan.Travailleur, ChatClient> travailleurs = new EnumMap<>(Plan.Travailleur.class);
     private final TraceStore traces;
 
+    /** Chaque client part d'un clone du builder : sinon les prompts et outils des uns fuiteraient chez les autres. */
     @Autowired
     public SuperviseurAgent(ChatClient.Builder builder, OutilsClinique dossier, OutilsPharmacie pharmacie,
                             OutilsAgenda agenda, TraceStore traces) {
-        this(builder.defaultSystem(SYSTEME_SUPERVISEUR).build(),
-                Map.of(Plan.Travailleur.DOSSIER, builder.defaultSystem("Tu es DossierWorker : tu réponds avec tes outils, sans rien inventer.").defaultTools(dossier).build(),
-                        Plan.Travailleur.PHARMACIE, builder.defaultSystem("Tu es PharmacieWorker : tu réponds avec tes outils, sans rien inventer.").defaultTools(pharmacie).build(),
-                        Plan.Travailleur.AGENDA, builder.defaultSystem("Tu es AgendaWorker : tu réponds avec tes outils ; tu ne fais que PROPOSER un événement.").defaultTools(agenda).build()),
+        this(builder.clone().defaultSystem(SYSTEME_SUPERVISEUR).build(),
+                Map.of(Plan.Travailleur.DOSSIER, builder.clone().defaultSystem("Tu es DossierWorker : tu réponds avec tes outils, sans rien inventer.").defaultTools(dossier).build(),
+                        Plan.Travailleur.PHARMACIE, builder.clone().defaultSystem("Tu es PharmacieWorker : tu réponds avec tes outils, sans rien inventer.").defaultTools(pharmacie).build(),
+                        Plan.Travailleur.AGENDA, builder.clone().defaultSystem("Tu es AgendaWorker : tu réponds avec tes outils ; tu ne fais que PROPOSER un événement.").defaultTools(agenda).build()),
                 traces);
     }
 
