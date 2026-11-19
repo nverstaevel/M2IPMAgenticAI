@@ -1,62 +1,50 @@
-# TD2 — Un chat qui interroge l'application (corrigé)
+# TD3 — Outils reliés au monde extérieur (solution)
 
-Reprend le TD1 et y branche un modèle avec Spring AI 2.0 : `ChatClient` (Dr Gribouille), mémoire de conversation,
-cinq outils de lecture, sortie structurée, et une écriture sous confirmation humaine.
+Projet cumulatif : tout le TD2 (chat, mémoire, propositions) + quatre sources externes et une expérience de contexte.
+**Ne pas distribuer avant la fin du TD3.**
 
-## Lancer avec un vrai modèle
+## Outils ajoutés (`externe/OutilsExternes`)
 
-Deux starters Spring AI sont présents ; `spring.ai.model.chat` choisit celui qui est actif.
-
-| Serveur | Commande | Notes |
+| Outil | Source | Remarques |
 |---|---|---|
-| **Ollama** (défaut) | `ollama pull qwen2.5:7b` puis `mvn spring-boot:run` | propriétés `spring.ai.ollama.*` |
-| **LM Studio** ou tout serveur compatible OpenAI | `mvn spring-boot:run -Dspring-boot.run.profiles=lmstudio` | propriétés `spring.ai.openai.*`, URL de base `http://localhost:1234/v1` |
+| `chercherDansWikipedia(titre)` | API REST de Wikipédia FR | User-Agent explicite, résumé tronqué à 1500 caractères, page absente ou d'homonymie expliquée au modèle, texte étiqueté « source externe non fiable » |
+| `consulterTarif(acte, espece)` | classeur Excel (feuille Tarifs) | lu **une seule fois** au démarrage (Apache POI), recherche insensible à la casse et aux accents |
+| `stockPharmacie(medicament)` | classeur Excel (feuille Pharmacie) | idem ; signale les ruptures |
+| `chercherMedicament(nom, espece)` | seconde base H2 (catalogue) | second `DataSource` + `@Qualifier`, requêtes paramétrées uniquement (jamais de SQL écrit par le modèle) |
+| `creneauxLibres(jour)` | agenda (`AgendaPort`) | créneaux de 30 min entre 9 h et 18 h |
+| `proposerEvenementAgenda(creatureId, dateHeure, motif)` | agenda | **n'écrit rien** ; la confirmation passe par `POST /api/propositions-agenda/{id}/confirmer` (rôle PERSONNEL), même principe qu'au TD2 |
 
-Le modèle doit gérer l'appel d'outils (tool calling). Pour changer de modèle ou de port sans toucher au dépôt :
-copier `application-local.yml.example` en `application-local.yml` (ignoré par Git) et ajouter le profil `local`
-(`-Dspring-boot.run.profiles=lmstudio,local`). Une API hébergée s'utilise comme LM Studio, avec son URL et sa clé
-dans une variable d'environnement (`OPENAI_API_KEY`), jamais dans Git ; surveillez le budget.
-Application : http://localhost:8080/chat (gribouille/gribouille). Profil `persistant` : voir `application-persistant.properties`.
+Chaque outil renvoie du texte lisible, y compris en cas d'échec : le modèle peut dire « je n'ai pas trouvé » au lieu de recevoir une exception.
 
-## Lancer sans modèle (profil `simule`)
+## Agenda : port et adaptateurs
 
-```bash
-mvn spring-boot:run -Dspring-boot.run.profiles=simule
-```
+`AgendaPort` (interface) → `AgendaSimule` (défaut, en mémoire, 3 déc. 2026 à 10 h et 14 h 30 occupés) ou `GoogleAgendaAdapter`
+(compte de service, API REST v3, agenda **de test**, aucun invité). Choix par `agenda.mode=simule|google`.
+Pour Google : `agenda.mode=google`, `agenda.google.calendar-id=…`, `agenda.google.credentials-file=/chemin/service-account.json`
+(fichier hors Git, agenda partagé avec l'adresse du compte de service).
 
-`ModeleSimule` répond de façon déterministe : « Simulé : … », un triage fixe, et `outil:NOM:{json}` déclenche
-l'appel de l'outil NOM (par exemple `outil:rechercherProprietaires:{"nom":"brume"}`). Les tests l'utilisent.
+## Deux bases de données
 
-## Contenu
+Dès qu'on déclare un `DataSource`, Spring Boot ne configure plus celui de la clinique : `CatalogueConfig` déclare donc les deux
+(la clinique en `@Primary`). Le catalogue n'expose pas de `JdbcTemplate` (il remplacerait celui de la mémoire de conversation) mais un
+`JdbcClient` qualifié. Piège rencontré en CI : sans `generateUniqueName(true)`, deux contextes de test partageaient la même base mémoire.
 
-| Élément | Fichier |
-|---|---|
-| Prompt système (base et variante stricte) | `ai/PromptsGribouille` |
-| `ChatClient` + mémoire (fenêtre de 10 messages, dépôt JDBC) + `SimpleLoggerAdvisor` | `ai/ChatConfig` |
-| Cinq outils de lecture + `proposerConsultation` | `ai/OutilsClinique` |
-| Proposition → confirmation (expire à 10 min) | `ai/PropositionService`, `ChatController#confirmer` |
-| Chat, flux SSE, triage structuré | `controller/ChatController`, `templates/chat.html` |
-| Faux modèle | `ai/ModeleSimule` |
+## Expérience de contexte (`experience/`)
 
-## Points de correction
+`ExperienceContexte` compare deux stratégies sur `questions-reference.csv` (10 questions, faits cachés dans `grand-bestiaire.txt`, ≈180 000 caractères) :
+A = tout le texte dans le prompt (tronqué à `tailleMax`), B = outil de recherche (≤ 3 passages de 800 caractères).
+Variations : position du passage (début/milieu/fin) × bruit (aucun/moitié/double). Mesures écrites en CSV
+(`question;strategie;position;bruit;jetons_entree;jetons_sortie;latence_ms;cout_estime;exactitude`), jetons estimés à 1 pour 4 caractères, coût fictif.
+Le modèle est un `Function<String,String>` : brancher `triageClient` (sans mémoire ni outils) pour une vraie mesure.
+**Les tests utilisent un faux modèle qui recopie son prompt : ils valident la mécanique, pas la qualité d'un vrai LLM. Un `mesures.csv` réel est à produire avec Ollama/LM Studio.**
+La stratégie C (similarité vectorielle en mémoire) est laissée en option aux étudiants.
 
-- **Aucun outil ne confirme.** `PropositionService.confirmer` n'est appelé que par `POST /api/propositions/{id}/confirmer`,
-  réservé au rôle PERSONNEL.
-- **Le modèle ne voit pas le téléphone** : les outils renvoient `ProprietaireVue` (réponse à la question 3 du sujet).
-- **Conflit de créneau** : `proposerConsultation` vérifie la disponibilité sans écrire ; le message d'erreur du TD1
-  (« Le soigneur 1 (…) est déjà pris le 12/03 à 14h10 … ») remonte au modèle comme résultat d'outil.
-- **Triage** : client séparé, sans mémoire ni outils (la mémoire exige un identifiant de conversation).
-- **`ToolContext`** : l'identifiant de conversation est transmis à l'outil hors du prompt.
+## Données et scripts
 
-## Spring AI 2.0 : deux pièges rencontrés
+`scripts/generer-xlsx.py` (classeur), `scripts/generer-bestiaire.py` (corpus + questions, graine fixe), `src/main/resources/donnees/catalogue-medicaments.sql`.
+Tout est synthétique (créatures et tarifs fictifs).
 
-- La boucle d'outils est dans le `ToolCallingAdvisor` du `ChatClient`, plus dans le `ChatModel`. Elle ignore toute requête dont
-  les options ne sont pas des `ToolCallingChatOptions`.
-- Le `ChatClient` part de `chatModel.getOptions()` (et non `getDefaultOptions()`) : un `ChatModel` maison doit surcharger `getOptions()`.
+## Vérification
 
-## Statut de vérification
-
-27 tests passent en intégration continue : modèle simulé pour la chaîne complète, et deux tests qui vérifient que Ollama
-(défaut) et le profil `lmstudio` câblent bien le bon `ChatModel` au démarrage, sans serveur.
-**Non vérifié** (aucun serveur de modèles dans l'environnement de rédaction) : un échange réel avec un modèle, c'est-à-dire
-la qualité des réponses, l'appel d'outils par un vrai modèle, le flux SSE, et l'URL exacte pour LM Studio (`/v1`).
+`mvn verify` en CI GitHub : 43 tests verts (modèle simulé, Wikipédia simulé par `MockRestServiceServer`, agenda simulé).
+**Non vérifié** : appel réel à Wikipédia, à Google Agenda, comportement d'un vrai LLM face aux six outils.
