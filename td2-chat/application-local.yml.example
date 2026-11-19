@@ -1,0 +1,8 @@
+# Copier en application-local.yml (ignoré par Git) et lancer avec --spring.profiles.active=local
+spring:
+  ai:
+    ollama:
+      base-url: http://localhost:11434
+      chat:
+        model: qwen2.5:7b
+        temperature: 0.3
