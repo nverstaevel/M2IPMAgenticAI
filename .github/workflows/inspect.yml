@@ -1,0 +1,16 @@
+name: inspect-spring-ai-sources
+on:
+  push:
+    paths: ['.github/workflows/inspect.yml']
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          B=https://repo.maven.apache.org/maven2/org/springframework/ai
+          curl -sSfL -o cc.jar $B/spring-ai-client-chat/2.0.0/spring-ai-client-chat-2.0.0-sources.jar
+          mkdir cc && cd cc && unzip -q ../cc.jar
+          f=$(find . -name DefaultChatClientUtils.java)
+          echo "=== $f"; grep -n -iE "options|toolcall|toolNames|toolContext" $f | head -80
+          g=$(find . -name DefaultChatClient.java)
+          echo "=== $g (options)"; grep -n -iE "chatModel.getDefaultOptions|ChatOptions|defaultOptions" $g | head -60
