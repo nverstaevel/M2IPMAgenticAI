@@ -1,6 +1,4 @@
 # IDE
-.project
-.classpath
 .settings/
 .factorypath
 .idea/
