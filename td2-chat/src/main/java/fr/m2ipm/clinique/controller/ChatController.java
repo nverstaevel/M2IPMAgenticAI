@@ -28,12 +28,14 @@ public class ChatController {
     private final ChatClient chat;
     private final ChatClient triage;
     private final PropositionService propositions;
+    private final ChatMemory memoire;
 
     public ChatController(ChatClient chat, @org.springframework.beans.factory.annotation.Qualifier("triageClient") ChatClient triage,
-                          PropositionService propositions) {
+                          PropositionService propositions, ChatMemory memoire) {
         this.chat = chat;
         this.triage = triage;
         this.propositions = propositions;
+        this.memoire = memoire;
     }
 
     @PostMapping("/chat")
@@ -45,6 +47,14 @@ public class ChatController {
                 .call()
                 .content();
         return new ChatReponse(reponse, propositions.enAttente(requete.conversationId()));
+    }
+
+    /** Réinitialise le contexte : efface la mémoire du modèle et les propositions en attente de cette conversation. */
+    @DeleteMapping("/chat/{conversationId}")
+    public org.springframework.http.ResponseEntity<Void> reinitialiser(@PathVariable String conversationId) {
+        memoire.clear(conversationId);
+        propositions.oublier(conversationId);
+        return org.springframework.http.ResponseEntity.noContent().build();
     }
 
     /** Même conversation en flux : Server-Sent Events, un fragment de texte par événement. */

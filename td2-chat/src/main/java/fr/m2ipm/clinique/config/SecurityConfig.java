@@ -25,6 +25,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/**").hasAnyRole(PERSONNEL, LECTURE)
                 // Le chat et le triage ne modifient rien : ouverts au rôle LECTURE.
                 .requestMatchers(HttpMethod.POST, "/api/chat", "/api/triage").hasAnyRole(PERSONNEL, LECTURE)
+                // Vider sa propre conversation n'écrit rien dans la clinique : ouvert aussi au rôle LECTURE.
+                .requestMatchers(HttpMethod.DELETE, "/api/chat/*").hasAnyRole(PERSONNEL, LECTURE)
                 .requestMatchers("/api/**").hasRole(PERSONNEL)
                 .requestMatchers(HttpMethod.POST, "/consultations").hasRole(PERSONNEL)
                 .requestMatchers("/consultations/nouvelle").hasRole(PERSONNEL)

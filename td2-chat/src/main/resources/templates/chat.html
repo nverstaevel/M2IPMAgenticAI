@@ -10,6 +10,7 @@
   <input id="message" style="width: 70%" placeholder="Posez votre question…" autocomplete="off" required>
   <button type="submit">Envoyer</button>
   <label><input type="checkbox" id="flux"> flux</label>
+  <button type="button" id="effacer" title="Oublier la conversation en cours">Effacer le contexte</button>
 </form>
 <script>
   let cid = sessionStorage.getItem('cid');
@@ -42,6 +43,14 @@
       zone.appendChild(d);
     });
   }
+
+  document.getElementById('effacer').addEventListener('click', async () => {
+    const r = await fetch('/api/chat/' + cid, { method: 'DELETE' });
+    if (!r.ok) { ajouter('Erreur', 'Impossible d\'effacer le contexte (' + r.status + ')'); return; }
+    fil.innerHTML = '';
+    document.getElementById('propositions').innerHTML = '';
+    ajouter('Clinique', 'Contexte effacé : le Dr Gribouille repart de zéro.');
+  });
 
   document.getElementById('formulaire').addEventListener('submit', async e => {
     e.preventDefault();

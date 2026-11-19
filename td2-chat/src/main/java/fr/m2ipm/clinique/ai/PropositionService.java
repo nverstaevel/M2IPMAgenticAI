@@ -61,6 +61,11 @@ public class PropositionService {
                 .toList();
     }
 
+    /** Oublie les propositions en attente d'une conversation (réinitialisation du chat). N'écrit rien en base. */
+    public void oublier(String conversationId) {
+        propositions.values().removeIf(p -> p.conversationId().equals(conversationId));
+    }
+
     /** Crée réellement la consultation. À n'appeler que depuis un endpoint réservé au personnel. */
     public ConsultationDto confirmer(String id) {
         PropositionConsultation p = propositions.get(id);

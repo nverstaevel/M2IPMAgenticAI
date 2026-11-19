@@ -36,6 +36,7 @@ l'appel de l'outil NOM (par exemple `outil:rechercherProprietaires:{"nom":"brume
 | Cinq outils de lecture + `proposerConsultation` | `ai/OutilsClinique` |
 | Proposition → confirmation (expire à 10 min) | `ai/PropositionService`, `ChatController#confirmer` |
 | Chat, flux SSE, triage structuré | `controller/ChatController`, `templates/chat.html` |
+| Bouton « Effacer le contexte » | `DELETE /api/chat/{conversationId}` : vide la mémoire du modèle et les propositions en attente |
 | Faux modèle | `ai/ModeleSimule` |
 
 ## Points de correction

@@ -1,6 +1,7 @@
 package fr.m2ipm.clinique;
 
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -83,5 +84,15 @@ class ChatApiTest {
     @WithMockUser(roles = "LECTURE")
     void leVisiteurNePeutPasConfirmer() throws Exception {
         mvc.perform(post("/api/propositions/n-importe-quoi/confirmer")).andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "LECTURE")
+    void effacerLeContexteVideLaMemoireDeLaConversation(@Autowired org.springframework.ai.chat.memory.ChatMemory memoire) throws Exception {
+        mvc.perform(post("/api/chat").contentType(MediaType.APPLICATION_JSON).content(chat("c-effacer", "Bonjour")))
+                .andExpect(status().isOk());
+        org.junit.jupiter.api.Assertions.assertFalse(memoire.get("c-effacer").isEmpty());
+        mvc.perform(delete("/api/chat/c-effacer")).andExpect(status().isNoContent());
+        org.junit.jupiter.api.Assertions.assertTrue(memoire.get("c-effacer").isEmpty());
     }
 }
