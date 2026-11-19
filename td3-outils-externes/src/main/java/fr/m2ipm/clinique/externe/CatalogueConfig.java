@@ -33,7 +33,7 @@ public class CatalogueConfig {
     DataSource catalogueDataSource() {
         return new EmbeddedDatabaseBuilder()
                 .setType(EmbeddedDatabaseType.H2)
-                .setName("catalogue-medicaments")
+                .generateUniqueName(true)
                 .setScriptEncoding("UTF-8")
                 .addScript("classpath:donnees/catalogue-medicaments.sql")
                 .build();

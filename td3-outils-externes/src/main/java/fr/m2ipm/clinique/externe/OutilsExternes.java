@@ -49,7 +49,7 @@ public class OutilsExternes {
     public String consulterTarif(@ToolParam(description = "Nom de l'acte") String acte,
                                  @ToolParam(description = "Nom de l'espèce") String espece) {
         return excel.tarif(acte, espece)
-                .map(p -> String.format("%s pour un(e) %s : %.2f €", acte, espece, p))
+                .map(p -> String.format(java.util.Locale.FRANCE, "%s pour un(e) %s : %.2f €", acte, espece, p))
                 .orElse("Aucun tarif trouvé pour « " + acte + " » (" + espece + "). Actes connus : Consultation, Vaccin, Soin de griffes, Examen de nuit.");
     }
 
