@@ -154,7 +154,11 @@ public class DuoService {
     private static String verifier(Diagnostic d) {
         if (d == null || d.traitements() == null || d.traitements().isEmpty()) return "aucun traitement";
         if (d.traitements().size() > 5) return "plus de 5 traitements";
-        if (d.traitements().stream().anyMatch(t -> t == null || t.isBlank() || t.length() > 200)) return "traitement vide ou trop long";
+        var fautif = d.traitements().stream().filter(t -> t == null || t.isBlank() || t.length() > 200).findFirst();
+        if (d.traitements().stream().anyMatch(t -> t == null || t.isBlank() || t.length() > 200)) {
+            String t = fautif.orElse(null);
+            return "traitement vide ou trop long (" + (t == null ? "vide" : t.length() + " caractères : « " + (t.length() > 80 ? t.substring(0, 80) + "…" : t) + " »") + ")";
+        }
         return null;
     }
 

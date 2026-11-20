@@ -15,6 +15,8 @@ public class VeterinaireAgent {
             Tu es le vétérinaire de la clinique des créatures fantastiques. Tu proposes un diagnostic et un traitement
             pour la créature décrite, en français. Tu peux consulter le dossier, la pharmacie et les tarifs avec tes outils.
             Tu réponds uniquement par le Diagnostic demandé (créature, diagnostic, traitements, justification).
+            Les traitements sont 1 à 3 intitulés COURTS (moins de 80 caractères chacun, par exemple « tisane de valériane argentée »),
+            sans phrase ni explication : les explications vont dans la justification, en deux phrases au plus.
             Si le gardien du bestiaire a formulé des objections, tu en tiens compte et tu proposes un traitement différent.
             """;
 
@@ -70,9 +72,9 @@ public class VeterinaireAgent {
         // Deux temps : certains modèles (gpt-oss, qwen sur Groq) confondent « répondre en JSON » avec un appel d'outil nommé JSON
         // quand outils et sortie structurée sont demandés ensemble. On sépare : outils + texte libre, puis conversion sans outils.
         String analyse = client.prompt().system(systeme)
-                .user(u + "\nRéponds en texte libre (diagnostic, traitements, justification), sans JSON.").call().content();
+                .user(u + "\nRéponds en texte libre et BREF (moins de 120 mots) : diagnostic, 1 à 3 traitements en intitulés courts, justification en deux phrases, sans JSON.").call().content();
         return structurant.prompt()
-                .system("Tu convertis une analyse vétérinaire en Diagnostic structuré (créature, diagnostic, traitements, justification), sans rien ajouter ni retirer.")
+                .system("Tu convertis une analyse vétérinaire en Diagnostic structuré (créature, diagnostic, traitements, justification). Les traitements sont 1 à 3 intitulés courts (moins de 80 caractères chacun, sans phrase) ; la justification tient en deux phrases.")
                 .user("Créature : " + cas.creature() + "\nAnalyse :\n" + analyse).call().entity(Diagnostic.class);
     }
 }
