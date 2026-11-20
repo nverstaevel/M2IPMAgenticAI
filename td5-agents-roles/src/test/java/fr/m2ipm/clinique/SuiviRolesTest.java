@@ -51,4 +51,33 @@ class SuiviRolesTest {
         assertThat(evts.stream().filter(e -> "t2".equals(e.id())).reduce((a, b) -> b).orElseThrow().statut()).isEqualTo(Evenement.OK);
         assertThat(evts.stream().filter(e -> "fin".equals(e.id())).findFirst().orElseThrow().statut()).isEqualTo(Evenement.OK);
     }
+
+    /** Chaque appel au modèle est compté (entrée, sortie) et cumulé sur le nœud de l'agent qui l'a fait. */
+    @Test
+    void lesJetonsSontCumulesParNoeud() {
+        var suivi = new SuiviExecution();
+        java.util.function.Function<String, org.springframework.ai.chat.model.ChatModel> avecUsage = texte -> new org.springframework.ai.chat.model.ChatModel() {
+            @Override public org.springframework.ai.chat.model.ChatResponse call(org.springframework.ai.chat.prompt.Prompt p) {
+                return new org.springframework.ai.chat.model.ChatResponse(
+                        java.util.List.of(new org.springframework.ai.chat.model.Generation(new org.springframework.ai.chat.messages.AssistantMessage(texte))),
+                        org.springframework.ai.chat.metadata.ChatResponseMetadata.builder()
+                                .usage(new org.springframework.ai.chat.metadata.DefaultUsage(100, 20)).build());
+            }
+        };
+        var vet = ChatClient.builder(avecUsage.apply(DuoServiceTest.DIAG.formatted("tisane")))
+                .defaultAdvisors(fr.m2ipm.clinique.agent.ComptageJetons.advisor()).build();
+        var gar = ChatClient.builder(avecUsage.apply(DuoServiceTest.APPROUVE))
+                .defaultAdvisors(fr.m2ipm.clinique.agent.ComptageJetons.advisor()).build();
+        new DuoService(new VeterinaireAgent(vet), new GardienDuBestiaire(gar), Clock.systemUTC(), "test", suivi)
+                .traiter("run-jetons", CAS, ProfilActeur.PRUDENT);
+        var evts = suivi.evenements("run-jetons").orElseThrow();
+        var v1 = evts.stream().filter(e -> "v1".equals(e.id()) && e.tokens() != null).reduce((a, b) -> b).orElseThrow();
+        assertThat(v1.tokens()).isEqualTo(120);
+        assertThat(v1.tokensEntree()).isEqualTo(100);
+        assertThat(v1.tokensSortie()).isEqualTo(20);
+        assertThat(v1.appelsModele()).isEqualTo(1);
+        assertThat(v1.tokensEstimes()).isFalse();
+        var g1 = evts.stream().filter(e -> "g1".equals(e.id()) && e.tokens() != null).reduce((a, b) -> b).orElseThrow();
+        assertThat(g1.tokens()).isEqualTo(120);
+    }
 }

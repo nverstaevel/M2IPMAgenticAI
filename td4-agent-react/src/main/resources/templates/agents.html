@@ -242,7 +242,7 @@
     var n = etat.noeuds.get(e.id);
     var neuf = !n;
     if (neuf) { n = { id: e.id, parents: [], genre: 'MODELE', libelle: e.id, statut: 'EN_COURS', ordre: etat.noeuds.size, t0: e.horodatage }; etat.noeuds.set(e.id, n); }
-    ['genre', 'libelle', 'statut', 'detail', 'resultat', 'dureeMs', 'tokens'].forEach(function (c) { if (e[c] != null) { n[c] = e[c]; } });
+    ['genre', 'libelle', 'statut', 'detail', 'resultat', 'dureeMs', 'tokens', 'tokensEntree', 'tokensSortie', 'appelsModele', 'tokensEstimes'].forEach(function (c) { if (e[c] != null) { n[c] = e[c]; } });
     if (e.parents != null) { n.parents = e.parents; }
     n.t1 = e.horodatage;
     if (neuf) { journaliser(e, 'Nouveau nœud : ' + n.libelle); }
@@ -324,7 +324,7 @@
     if (n.statut === 'EN_COURS') { return 'en cours…'; }
     var p = [];
     if (n.dureeMs != null) { p.push(n.dureeMs + ' ms'); }
-    if (n.tokens != null) { p.push(n.tokens + ' tok'); }
+    if (n.tokens != null) { p.push((n.tokensEstimes ? '≈' : '') + n.tokens + ' tok'); }
     return p.length ? p.join(' · ') : (n.statut === 'ERREUR' ? 'erreur' : '');
   }
 
@@ -387,9 +387,10 @@
     els.statut.textContent = s == null ? 'Aucune exécution' : (s === 'EN_COURS' ? 'En cours…' : 'Terminé : ' + s);
     els.statut.className = 'pastille ' + (s == null ? '' : s === 'EN_COURS' ? 'encours' : (s === 'REPONSE_FINALE' || s === 'APPROUVEE' || s === 'TERMINE' ? 'ok' : 'erreur'));
     els.titre.textContent = etat.titre;
-    var tok = 0; etat.noeuds.forEach(function (n) { if (n.genre === 'MODELE' || n.genre === 'AGENT' || n.genre === 'CRITIQUE' || n.genre === 'TRAVAILLEUR') { tok += n.tokens || 0; } });
+    var tok = 0, tIn = 0, tOut = 0, appels = 0, estime = false;
+    etat.noeuds.forEach(function (n) { if (n.genre === 'MODELE' || n.genre === 'AGENT' || n.genre === 'CRITIQUE' || n.genre === 'TRAVAILLEUR') { tok += n.tokens || 0; tIn += n.tokensEntree || 0; tOut += n.tokensSortie || 0; appels += n.appelsModele || 0; if (n.tokensEstimes) { estime = true; } } });
     var duree = etat.premier ? ((etat.dernier - etat.premier) / 1000).toFixed(1) + ' s' : '';
-    els.stats.textContent = etat.noeuds.size + ' nœuds · ' + tok + ' tokens · ' + duree;
+    els.stats.textContent = etat.noeuds.size + ' nœuds · ' + (estime ? '≈' : '') + tok + ' tokens (entrée ' + tIn + ' · sortie ' + tOut + ') · ' + appels + ' appel(s) au modèle · ' + duree;
   }
 
   // ---------- caméra ----------
@@ -455,7 +456,7 @@
       els.champs.appendChild(dt); els.champs.appendChild(dd);
     }
     ligne('Nœud', n.libelle); ligne('Type', (GENRES[n.genre] || [n.genre])[0]); ligne('Statut', n.statut);
-    ligne('Durée', n.dureeMs != null ? n.dureeMs + ' ms' : null); ligne('Tokens', n.tokens != null ? String(n.tokens) : null);
+    ligne('Durée', n.dureeMs != null ? n.dureeMs + ' ms' : null); ligne('Tokens', n.tokens != null ? (n.tokensEstimes ? '≈ ' : '') + n.tokens + (n.tokensEntree != null ? ' (entrée ' + n.tokensEntree + ' · sortie ' + n.tokensSortie + ')' : '') + (n.appelsModele ? ' · ' + n.appelsModele + ' appel(s) au modèle' : '') + (n.tokensEstimes ? ' — estimé, le fournisseur n\'a pas annoncé sa consommation' : '') : null);
     ligne(n.genre === 'OUTIL' ? 'Arguments' : n.genre === 'MODELE' ? 'Texte produit par le modèle' : 'Contenu', joli(n.detail), true);
     ligne('Résultat', joli(n.resultat), true);
   }

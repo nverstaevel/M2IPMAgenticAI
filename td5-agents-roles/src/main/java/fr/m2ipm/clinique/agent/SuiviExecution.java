@@ -76,6 +76,19 @@ public class SuiviExecution {
         }
     }
 
+    /** Consommation du modèle d'un nœud (entrée, sortie, nombre d'appels) ; le total devient le champ « tokens » du nœud. */
+    public void jetons(String runId, String id, int entree, int sortie, int appels, boolean estime) {
+        Run run = runs.get(runId);
+        if (run != null) {
+            synchronized (run) {
+                Evenement e = new Evenement(run.evenements.size() + 1L, System.currentTimeMillis(), run.runId, "noeud", id, null,
+                        null, null, null, null, null, null, entree + sortie, entree, sortie, appels, estime);
+                run.evenements.add(e);
+                diffuser(run, e);
+            }
+        }
+    }
+
     /** Clôt l'exécution (motif : REPONSE_FINALE, PLAFOND_ETAPES, ERREUR…) et ferme les flux. */
     public void terminer(String runId, String motif) {
         Run run = runs.get(runId);
@@ -161,7 +174,7 @@ public class SuiviExecution {
     private static Evenement nouvelEvenement(Run run, String type, String id, List<String> parents, String genre, String libelle,
                                              String statut, String detail, String resultat, Long dureeMs, Integer tokens) {
         return new Evenement(run.evenements.size() + 1L, System.currentTimeMillis(), run.runId, type, id, parents, genre,
-                libelle, statut, detail, resultat, dureeMs, tokens);
+                libelle, statut, detail, resultat, dureeMs, tokens, null, null, null, null);
     }
 
     private void diffuser(Run run, Evenement e) {

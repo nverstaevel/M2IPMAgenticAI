@@ -14,29 +14,57 @@ import org.springframework.ai.tool.metadata.ToolMetadata;
  */
 public final class SuiviOutils {
 
-    private record Contexte(SuiviExecution suivi, String runId, String parent, AtomicInteger compteur) {}
+    private record Contexte(SuiviExecution suivi, String runId, String parent, AtomicInteger compteur, ComptageJetons.Cumul cumul) {}
 
     private static final ThreadLocal<Contexte> COURANT = new ThreadLocal<>();
 
     private SuiviOutils() {}
 
-    /** À utiliser dans un try-with-resources autour de l'appel de l'agent. */
+    /**
+     * À utiliser dans un try-with-resources autour de l'appel de l'agent. À la fermeture, la consommation cumulée de tous
+     * les appels au modèle faits dans le bloc est publiée sur le nœud de l'agent (entrée, sortie, nombre d'appels).
+     */
     public static Portee ouvrir(SuiviExecution suivi, String runId, String parent) {
         Contexte precedent = COURANT.get();
-        COURANT.set(new Contexte(suivi, runId, parent, new AtomicInteger()));
-        return () -> {
-            if (precedent == null) {
-                COURANT.remove();
-            } else {
-                COURANT.set(precedent);
+        ComptageJetons.Cumul precedentCumul = ComptageJetons.COURANT.get();
+        var cumul = new ComptageJetons.Cumul();
+        COURANT.set(new Contexte(suivi, runId, parent, new AtomicInteger(), cumul));
+        ComptageJetons.COURANT.set(cumul);
+        return new Portee() {
+            @Override
+            public void close() {
+                if (cumul.appels() > 0) {
+                    suivi.jetons(runId, parent, cumul.entree(), cumul.sortie(), cumul.appels(), cumul.estime());
+                }
+                if (precedent == null) { COURANT.remove(); } else { COURANT.set(precedent); }
+                if (precedentCumul == null) { ComptageJetons.COURANT.remove(); } else { ComptageJetons.COURANT.set(precedentCumul); }
             }
+
+            @Override
+            public int total() { return cumul.total(); }
         };
     }
 
-    @FunctionalInterface
     public interface Portee extends AutoCloseable {
         @Override
         void close();
+
+        /** Tokens consommés dans ce bloc (0 si le client n'a pas l'advisor de comptage). */
+        int total();
+    }
+
+    /**
+     * Un appel au modèle rejeté par le fournisseur (appel d'outil mal formé, surcharge passagère) est tenté une seconde fois ;
+     * la première erreur reste visible dans le détail du nœud. Un second échec est propagé.
+     */
+    public static <T> T reessayer(SuiviExecution suivi, String runId, String id, java.util.function.Supplier<T> appel) {
+        try {
+            return appel.get();
+        } catch (RuntimeException premier) {
+            suivi.maj(runId, id, Evenement.EN_COURS, "Tentative 1 échouée : " + premier.getMessage() + "\nNouvelle tentative…",
+                    null, null, null);
+            return appel.get();
+        }
     }
 
     public static ToolCallback[] envelopper(ToolCallback... outils) {

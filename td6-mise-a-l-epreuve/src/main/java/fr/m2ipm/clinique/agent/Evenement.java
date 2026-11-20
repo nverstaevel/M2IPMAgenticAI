@@ -9,7 +9,8 @@ import java.util.List;
  */
 public record Evenement(long seq, long horodatage, String runId, String type, String id, List<String> parents,
                         String genre, String libelle, String statut, String detail, String resultat,
-                        Long dureeMs, Integer tokens) {
+                        Long dureeMs, Integer tokens, Integer tokensEntree, Integer tokensSortie,
+                        Integer appelsModele, Boolean tokensEstimes) {
 
     /** Genres de nœuds (couleur et forme dans le graphe). */
     public static final String UTILISATEUR = "UTILISATEUR";

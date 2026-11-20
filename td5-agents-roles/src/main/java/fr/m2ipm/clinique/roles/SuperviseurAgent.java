@@ -1,6 +1,7 @@
 package fr.m2ipm.clinique.roles;
 
 import fr.m2ipm.clinique.agent.Etape;
+import fr.m2ipm.clinique.agent.ComptageJetons;
 import fr.m2ipm.clinique.agent.Evenement;
 import fr.m2ipm.clinique.agent.SuiviExecution;
 import fr.m2ipm.clinique.agent.SuiviOutils;
@@ -42,10 +43,10 @@ public class SuperviseurAgent {
     @Autowired
     public SuperviseurAgent(ChatClient.Builder builder, OutilsClinique dossier, OutilsPharmacie pharmacie,
                             OutilsAgenda agenda, TraceStore traces, SuiviExecution suivi) {
-        this(builder.clone().defaultSystem(SYSTEME_SUPERVISEUR).build(),
-                Map.of(Plan.Travailleur.DOSSIER, builder.clone().defaultSystem("Tu es DossierWorker : tu réponds avec tes outils, sans rien inventer.").defaultToolCallbacks(SuiviOutils.envelopper(ToolCallbacks.from(dossier))).build(),
-                        Plan.Travailleur.PHARMACIE, builder.clone().defaultSystem("Tu es PharmacieWorker : tu réponds avec tes outils, sans rien inventer.").defaultToolCallbacks(SuiviOutils.envelopper(ToolCallbacks.from(pharmacie))).build(),
-                        Plan.Travailleur.AGENDA, builder.clone().defaultSystem("Tu es AgendaWorker : tu réponds avec tes outils ; tu ne fais que PROPOSER un événement.").defaultToolCallbacks(SuiviOutils.envelopper(ToolCallbacks.from(agenda))).build()),
+        this(builder.clone().defaultSystem(SYSTEME_SUPERVISEUR).defaultAdvisors(ComptageJetons.advisor()).build(),
+                Map.of(Plan.Travailleur.DOSSIER, builder.clone().defaultSystem("Tu es DossierWorker : tu réponds avec tes outils, sans rien inventer.").defaultToolCallbacks(SuiviOutils.envelopper(ToolCallbacks.from(dossier))).defaultAdvisors(ComptageJetons.advisor()).build(),
+                        Plan.Travailleur.PHARMACIE, builder.clone().defaultSystem("Tu es PharmacieWorker : tu réponds avec tes outils, sans rien inventer.").defaultToolCallbacks(SuiviOutils.envelopper(ToolCallbacks.from(pharmacie))).defaultAdvisors(ComptageJetons.advisor()).build(),
+                        Plan.Travailleur.AGENDA, builder.clone().defaultSystem("Tu es AgendaWorker : tu réponds avec tes outils ; tu ne fais que PROPOSER un événement.").defaultToolCallbacks(SuiviOutils.envelopper(ToolCallbacks.from(agenda))).defaultAdvisors(ComptageJetons.advisor()).build()),
                 traces, suivi);
     }
 
@@ -74,7 +75,10 @@ public class SuperviseurAgent {
             suivi.noeud(runId, "plan", List.of("demande"), Evenement.AGENT, "Superviseur · plan", Evenement.EN_COURS,
                     "Planifie les sous-tâches (sortie structurée, aucun outil)", null, null, null);
             long t0 = System.nanoTime();
-            Plan plan = superviseur.prompt().user(demande).call().entity(Plan.class);
+            Plan plan;
+            try (var p = SuiviOutils.ouvrir(suivi, runId, "plan")) {
+                plan = SuiviOutils.reessayer(suivi, runId, "plan", () -> superviseur.prompt().user(demande).call().entity(Plan.class));
+            }
             suivi.maj(runId, "plan", Evenement.OK, null,
                     plan.sousTaches().stream().map(t -> t.travailleur() + " : " + t.consigne()).reduce((a, b) -> a + "\n" + b).orElse("(vide)"),
                     (System.nanoTime() - t0) / 1_000_000, null);
@@ -91,11 +95,13 @@ public class SuperviseurAgent {
                         t.consigne(), null, null, null);
                 long debut = System.nanoTime();
                 String reponse = null;
+                int jetonsTravailleur = 0;
                 RuntimeException echec = null;
                 for (int tentative = 1; tentative <= 2 && reponse == null; tentative++) {
                     try (var p = SuiviOutils.ouvrir(suivi, runId, id)) {
                         reponse = travailleurs.get(t.travailleur()).prompt().user(t.consigne())
                                 .toolContext(Map.of("conversationId", runId)).call().content();
+                        jetonsTravailleur = p.total();
                     } catch (RuntimeException e) {
                         // Appel d'outil mal formé par le modèle (rejeté par le fournisseur) : une seconde tentative suffit souvent.
                         echec = e;
@@ -114,7 +120,8 @@ public class SuperviseurAgent {
                 String r = reponse == null ? "" : reponse;
                 long ms = (System.nanoTime() - debut) / 1_000_000;
                 var etape = new Etape(numero, "Délégation à " + t.travailleur() + "Worker", t.travailleur() + "Worker",
-                        t.consigne(), r.length() > 500 ? r.substring(0, 500) + "…" : r, ms, (t.consigne().length() + r.length()) / 4);
+                        t.consigne(), r.length() > 500 ? r.substring(0, 500) + "…" : r, ms,
+                        jetonsTravailleur > 0 ? jetonsTravailleur : (t.consigne().length() + r.length()) / 4);
                 etapes.add(etape);
                 traces.ajouter(runId, etape);
                 suivi.maj(runId, id, Evenement.OK, null, abreger(r, 800), ms, etape.tokens());
@@ -125,10 +132,12 @@ public class SuperviseurAgent {
             suivi.noeud(runId, "synthese", termines.isEmpty() ? List.of("plan") : termines, Evenement.AGENT, "Superviseur · synthèse",
                     Evenement.EN_COURS, "Assemble les réponses des travailleurs", null, null, null);
             long t1 = System.nanoTime();
-            String synthese = superviseur.prompt()
-                    .user("Demande : " + demande + "\nRéponses des travailleurs :\n" + reponses
-                            + "Rédige la réponse finale pour l'utilisateur, sans inventer d'information.")
-                    .call().content();
+            String promptSynthese = "Demande : " + demande + "\nRéponses des travailleurs :\n" + reponses
+                    + "Rédige la réponse finale pour l'utilisateur, sans inventer d'information.";
+            String synthese;
+            try (var p = SuiviOutils.ouvrir(suivi, runId, "synthese")) {
+                synthese = SuiviOutils.reessayer(suivi, runId, "synthese", () -> superviseur.prompt().user(promptSynthese).call().content());
+            }
             suivi.maj(runId, "synthese", Evenement.OK, null, abreger(synthese, 800), (System.nanoTime() - t1) / 1_000_000, null);
             suivi.noeud(runId, "fin", List.of("synthese"), Evenement.FIN, "Réponse finale", Evenement.OK, null,
                     synthese, null, null);

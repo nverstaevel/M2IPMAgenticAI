@@ -73,7 +73,8 @@ public class DuoService {
                 long t0 = System.nanoTime();
                 Diagnostic d;
                 try (var p = SuiviOutils.ouvrir(suivi, runId, idV)) {
-                    d = veterinaire.proposer(cas, profil, objections);
+                    var objectionsTour = objections;
+                    d = SuiviOutils.reessayer(suivi, runId, idV, () -> veterinaire.proposer(cas, profil, objectionsTour));
                 }
                 suivi.maj(runId, idV, Evenement.OK, resume(d), null, ms(t0), null);
 
@@ -83,7 +84,8 @@ public class DuoService {
                 long t1 = System.nanoTime();
                 Critique c;
                 try (var p = SuiviOutils.ouvrir(suivi, runId, idG)) {
-                    c = gardien.examiner(cas.espece(), d);
+                    var dTour = d;
+                    c = SuiviOutils.reessayer(suivi, runId, idG, () -> gardien.examiner(cas.espece(), dTour));
                 }
                 suivi.maj(runId, idG, c.verdict() == Verdict.APPROUVE ? Evenement.OK : Evenement.ERREUR,
                         "Verdict : " + c.verdict(), resume(c), ms(t1), null);

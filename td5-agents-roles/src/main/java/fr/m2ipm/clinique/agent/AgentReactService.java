@@ -94,12 +94,14 @@ public class AgentReactService {
                 suivi.noeud(runId, idModele, List.of(precedent), Evenement.MODELE, "Étape " + numero + " · modèle",
                         Evenement.EN_COURS, null, null, null, null);
                 long debut = System.nanoTime();
-                ChatResponse reponse = modele.call(prompt);
+                ChatResponse reponse = SuiviOutils.reessayer(suivi, runId, idModele, () -> modele.call(prompt));
                 AssistantMessage sortie = reponse.getResult().getOutput();
                 String texte = sortie.getText() == null ? "" : sortie.getText();
-                int tokensEtape = tokens(reponse, prompt, texte);
+                Jetons jetons = Jetons.de(reponse, prompt, texte);
+                int tokensEtape = jetons.total();
                 tokens += tokensEtape;
                 suivi.maj(runId, idModele, Evenement.OK, texte, null, ms(debut), tokensEtape);
+                suivi.jetons(runId, idModele, jetons.entree(), jetons.sortie(), 1, jetons.estime());
 
                 if (!reponse.hasToolCalls()) {
                     enregistrer(runId, etapes, new Etape(numero, texte, "", "", "", ms(debut), tokensEtape));
@@ -208,16 +210,5 @@ public class AgentReactService {
 
     private static long ms(long debutNanos) {
         return (System.nanoTime() - debutNanos) / 1_000_000;
-    }
-
-    /** Tokens annoncés par le serveur ; à défaut, estimation à 1 pour 4 caractères (prompt + réponse). */
-    private static int tokens(ChatResponse reponse, Prompt prompt, String texte) {
-        var usage = reponse.getMetadata() == null ? null : reponse.getMetadata().getUsage();
-        Integer total = usage == null ? null : usage.getTotalTokens();
-        if (total != null && total > 0) {
-            return total;
-        }
-        int caracteres = prompt.getInstructions().stream().mapToInt(m -> m.getText() == null ? 0 : m.getText().length()).sum();
-        return (caracteres + texte.length() + 3) / 4;
     }
 }
