@@ -20,21 +20,38 @@ public class GardienDuBestiaire {
             """;
 
     private final ChatClient client;
+    private final ChatClient structurant;
 
     @Autowired
-    public GardienDuBestiaire(ChatClient.Builder builder, OutilsBestiaire bestiaire) {
-        this(builder.defaultSystem(SYSTEME).defaultToolCallbacks(fr.m2ipm.clinique.agent.SuiviOutils.envelopper(
-                org.springframework.ai.support.ToolCallbacks.from(bestiaire)))
-                .defaultAdvisors(fr.m2ipm.clinique.agent.ComptageJetons.advisor()).build());
+    public GardienDuBestiaire(ChatClient.Builder builder, OutilsBestiaire bestiaire,
+                              @org.springframework.beans.factory.annotation.Value("${agents.sortie-en-deux-temps:false}") boolean deuxTemps) {
+        this(construire(builder, bestiaire), deuxTemps ? builder.clone().defaultAdvisors(fr.m2ipm.clinique.agent.ComptageJetons.advisor()).build() : null);
     }
 
-    public GardienDuBestiaire(ChatClient client) { this.client = client; }
+    private static ChatClient construire(ChatClient.Builder builder, OutilsBestiaire bestiaire) {
+        return builder.clone().defaultSystem(SYSTEME).defaultToolCallbacks(fr.m2ipm.clinique.agent.SuiviOutils.envelopper(
+                org.springframework.ai.support.ToolCallbacks.from(bestiaire)))
+                .defaultAdvisors(fr.m2ipm.clinique.agent.ComptageJetons.advisor()).build();
+    }
+
+    public GardienDuBestiaire(ChatClient client) { this(client, null); }
+
+    public GardienDuBestiaire(ChatClient client, ChatClient structurant) { this.client = client; this.structurant = structurant; }
 
     public Critique examiner(String espece, Diagnostic d) {
         String message = "Créature : " + d.creature() + " (" + espece + ")\n"
                 + "Diagnostic : " + d.diagnostic() + "\n"
                 + "Traitements proposés : " + String.join(" ; ", d.traitements()) + "\n"
                 + "Justification : " + d.justification();
-        return client.prompt().user(message).call().entity(Critique.class);
+        if (structurant == null) {
+            return client.prompt().user(message).call().entity(Critique.class);
+        }
+        // Deux temps : voir VeterinaireAgent (outils et sortie structurée ne sont pas demandés dans le même appel).
+        String analyse = client.prompt()
+                .user(message + "\nRéponds en texte libre : ton verdict (APPROUVE, REJETE ou DOUTE), tes objections et les adresses Wikipédia lues, sans JSON.")
+                .call().content();
+        return structurant.prompt()
+                .system("Tu convertis l'avis d'un gardien en Critique structurée (verdict APPROUVE, REJETE ou DOUTE ; objections ; sources = adresses https://fr.wikipedia.org/wiki/... citées), sans rien ajouter.")
+                .user(analyse).call().entity(Critique.class);
     }
 }

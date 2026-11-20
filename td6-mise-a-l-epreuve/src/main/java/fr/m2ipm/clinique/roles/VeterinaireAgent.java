@@ -33,15 +33,24 @@ public class VeterinaireAgent {
             """;
 
     private final ChatClient client;
+    /** Client SANS outils qui convertit l'analyse libre en Diagnostic (mode « deux temps », voir agents.sortie-en-deux-temps). */
+    private final ChatClient structurant;
 
     @Autowired
-    public VeterinaireAgent(ChatClient.Builder builder, OutilsClinique clinique, OutilsPharmacie pharmacie) {
-        this(builder.defaultToolCallbacks(fr.m2ipm.clinique.agent.SuiviOutils.envelopper(
-                org.springframework.ai.support.ToolCallbacks.from(clinique, pharmacie)))
-                .defaultAdvisors(fr.m2ipm.clinique.agent.ComptageJetons.advisor()).build());
+    public VeterinaireAgent(ChatClient.Builder builder, OutilsClinique clinique, OutilsPharmacie pharmacie,
+                            @org.springframework.beans.factory.annotation.Value("${agents.sortie-en-deux-temps:false}") boolean deuxTemps) {
+        this(construire(builder, clinique, pharmacie), deuxTemps ? builder.clone().defaultAdvisors(fr.m2ipm.clinique.agent.ComptageJetons.advisor()).build() : null);
     }
 
-    public VeterinaireAgent(ChatClient client) { this.client = client; }
+    private static ChatClient construire(ChatClient.Builder builder, OutilsClinique clinique, OutilsPharmacie pharmacie) {
+        return builder.clone().defaultToolCallbacks(fr.m2ipm.clinique.agent.SuiviOutils.envelopper(
+                org.springframework.ai.support.ToolCallbacks.from(clinique, pharmacie)))
+                .defaultAdvisors(fr.m2ipm.clinique.agent.ComptageJetons.advisor()).build();
+    }
+
+    public VeterinaireAgent(ChatClient client) { this(client, null); }
+
+    public VeterinaireAgent(ChatClient client, ChatClient structurant) { this.client = client; this.structurant = structurant; }
 
     public Diagnostic proposer(CasBestiaire cas, ProfilActeur profil, List<String> objections) {
         StringBuilder u = new StringBuilder();
@@ -54,10 +63,16 @@ public class VeterinaireAgent {
         if (objections != null && !objections.isEmpty()) {
             u.append("Objections du gardien à prendre en compte : ").append(String.join(" ; ", objections)).append('\n');
         }
-        return client.prompt()
-                .system(switch (profil) { case PRESSE -> PRESSE; case OBSTINE -> OBSTINE; default -> PRUDENT; })
-                .user(u.toString())
-                .call()
-                .entity(Diagnostic.class);
+        String systeme = switch (profil) { case PRESSE -> PRESSE; case OBSTINE -> OBSTINE; default -> PRUDENT; };
+        if (structurant == null) {
+            return client.prompt().system(systeme).user(u.toString()).call().entity(Diagnostic.class);
+        }
+        // Deux temps : certains modèles (gpt-oss, qwen sur Groq) confondent « répondre en JSON » avec un appel d'outil nommé JSON
+        // quand outils et sortie structurée sont demandés ensemble. On sépare : outils + texte libre, puis conversion sans outils.
+        String analyse = client.prompt().system(systeme)
+                .user(u + "\nRéponds en texte libre (diagnostic, traitements, justification), sans JSON.").call().content();
+        return structurant.prompt()
+                .system("Tu convertis une analyse vétérinaire en Diagnostic structuré (créature, diagnostic, traitements, justification), sans rien ajouter ni retirer.")
+                .user("Créature : " + cas.creature() + "\nAnalyse :\n" + analyse).call().entity(Diagnostic.class);
     }
 }
