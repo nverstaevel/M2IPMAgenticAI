@@ -47,7 +47,7 @@ public class JeuMcp {
 
     // La réponse d'un outil MCP est un JSON, parfois emballé dans une chaîne : on lit les champs sans dépendre de l'emballage.
     static int entier(String texte, String champ) {
-        Matcher m = Pattern.compile(champ + "\\W{1,6}(-?\\d+)").matcher(texte);
+        Matcher m = Pattern.compile(champ + "[^\\w-]{1,6}(-?\\d+)").matcher(texte);
         if (!m.find()) { throw new IllegalStateException("Champ « " + champ + " » absent de : " + texte); }
         return Integer.parseInt(m.group(1));
     }
@@ -58,7 +58,7 @@ public class JeuMcp {
     }
 
     static Optional<Integer> premierEntier(String texte, String champ) {
-        Matcher m = Pattern.compile(champ + "\\W{1,6}(-?\\d+)").matcher(texte);
+        Matcher m = Pattern.compile(champ + "[^\\w-]{1,6}(-?\\d+)").matcher(texte);
         return m.find() ? Optional.of(Integer.parseInt(m.group(1))) : Optional.empty();
     }
 }
