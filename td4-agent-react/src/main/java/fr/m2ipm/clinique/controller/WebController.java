@@ -30,6 +30,12 @@ public class WebController {
         return "chat";
     }
 
+    /** Graphe en direct des exécutions d'agents (rôle PERSONNEL, voir SecurityConfig). */
+    @GetMapping("/agents")
+    public String agents() {
+        return "agents";
+    }
+
     @GetMapping("/proprietaires")
     public String recherche(@RequestParam(defaultValue = "") String nom, Model model) {
         model.addAttribute("nom", nom);

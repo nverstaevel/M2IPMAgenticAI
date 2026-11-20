@@ -19,13 +19,16 @@ public class AgentController {
 
     private final AgentReactService agent;
     private final TraceStore traces;
+    private final SuiviExecution suivi;
+    private final java.util.concurrent.ExecutorService executeur = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor();
     private final org.springframework.ai.chat.client.ChatClient framework;
 
-    public AgentController(AgentReactService agent, TraceStore traces,
+    public AgentController(AgentReactService agent, TraceStore traces, SuiviExecution suivi,
                            @org.springframework.beans.factory.annotation.Qualifier("agentFrameworkClient")
                            org.springframework.ai.chat.client.ChatClient framework) {
         this.agent = agent;
         this.traces = traces;
+        this.suivi = suivi;
         this.framework = framework;
     }
 
@@ -42,6 +45,23 @@ public class AgentController {
     public AgentReponse executer(@Valid @RequestBody AgentRequest requete) {
         var e = agent.executer(requete.demande(), requete.maxEtapes() == null ? 8 : requete.maxEtapes());
         return new AgentReponse(e.runId(), e.resultat());
+    }
+
+    public record Lancement(String runId) {}
+
+    /** Lance l'agent en arrière-plan et rend aussitôt le runId : la page /agents suit l'exécution en direct. */
+    @PostMapping("/lancer")
+    public Lancement lancer(@Valid @RequestBody AgentRequest requete) {
+        String runId = java.util.UUID.randomUUID().toString();
+        int max = requete.maxEtapes() == null ? 8 : requete.maxEtapes();
+        suivi.demarrer(runId, "ReAct : " + (requete.demande().length() > 60 ? requete.demande().substring(0, 60) + "…" : requete.demande()));
+        executeur.submit(() -> agent.executer(runId, requete.demande(), max));
+        return new Lancement(runId);
+    }
+
+    @jakarta.annotation.PreDestroy
+    void arreter() {
+        executeur.shutdownNow();
     }
 
     @GetMapping("/{runId}/trace")
