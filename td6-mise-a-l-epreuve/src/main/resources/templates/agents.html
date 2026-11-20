@@ -35,6 +35,9 @@
   .G-UTILISATEUR rect.corps { stroke: #5d6d7e; } .G-MODELE rect.corps { stroke: #7d3c98; } .G-OUTIL rect.corps { stroke: #d68910; }
   .G-AGENT rect.corps { stroke: #2471a3; } .G-CRITIQUE rect.corps { stroke: #c0392b; } .G-TRAVAILLEUR rect.corps { stroke: #229954; }
   .G-HUMAIN rect.corps { stroke: #b7950b; } .G-CODE rect.corps { stroke: #566573; }
+  .noeud.PREVU rect.corps { stroke-dasharray: 3 4; fill: #f4f6f7; opacity: .75; }
+  #scenario-info { font-size: .85rem; color: #444; white-space: pre-wrap; }
+  #scenario-info .err { color: #a00; }
   .noeud.ATTENTE rect.corps { stroke-dasharray: 6 4; fill: #fffbea; } .G-FIN rect.corps { stroke: #1e8449; }
   .G-FIN.OK rect.corps { fill: #eafaf1; }
   .bandeau { height: 6px; rx: 3; }
@@ -61,7 +64,9 @@
     <label for="demande">Demande</label>
     <textarea id="demande" placeholder="Que doit faire l'agent ?"></textarea>
     <div id="parametres"></div>
-    <p><button id="lancer" type="button">Lancer et suivre</button></p>
+    <div id="scenario-info"></div>
+    <p><button id="lancer" type="button">Lancer et suivre</button>
+      <button id="apercu" type="button" style="display:none" title="Dessine le graphe prévu par le scénario, sans rien exécuter">Aperçu du graphe</button></p>
     <div class="erreur-form" id="erreur-form"></div>
     <h2>Exécutions</h2>
     <select id="runs" size="6"></select>
@@ -184,6 +189,10 @@
         if (p.jour) { c.jour = p.jour; }
         return { url: '/api/agent/lancer-workflow', corps: c };
       }
+    },
+    {
+      id: 'scenario', libelle: 'Scénario (fichier .md)', scenario: true, sansDemande: true,
+      requete: function (d, p) { return { url: '/api/agent/scenarios/' + encodeURIComponent(els.exemple.value) + '/lancer', corps: p }; }
     }
   ];
   window.AGENTS_MODES = MODES;
@@ -220,10 +229,55 @@
     });
     els.demande.disabled = m.sansDemande === true;
     els.demande.placeholder = m.sansDemande ? '(non utilisée par ce mode)' : 'Que doit faire l\'agent ?';
+    document.getElementById('apercu').style.display = m.scenario ? '' : 'none';
+    document.getElementById('scenario-info').textContent = '';
+    if (m.scenario) { chargerScenarios(); }
+  }
+
+  // ---- mode « scénario » : les scénarios sont des fichiers .md lus par le serveur ----
+  var scen = { liste: [], courant: null };
+  function chargerScenarios() {
+    fetch('/api/agent/scenarios').then(function (r) { return r.json(); }).then(function (liste) {
+      scen.liste = liste;
+      els.exemple.innerHTML = '';
+      var vide = document.createElement('option'); vide.value = ''; vide.textContent = '(choisir un scénario)'; els.exemple.appendChild(vide);
+      liste.forEach(function (sc) {
+        var o = document.createElement('option'); o.value = sc.id;
+        o.textContent = (sc.valide ? '' : '⚠ ') + sc.titre + ' [' + sc.architecture + ']'; els.exemple.appendChild(o);
+      });
+    }).catch(function () { document.getElementById('scenario-info').textContent = 'Scénarios indisponibles.'; });
+  }
+  function choisirScenario() {
+    var info = document.getElementById('scenario-info');
+    scen.courant = scen.liste.filter(function (x) { return x.id === els.exemple.value; })[0] || null;
+    els.parametres.innerHTML = ''; info.textContent = '';
+    if (!scen.courant) { return; }
+    scen.courant.entree.forEach(function (c) {
+      var l = document.createElement('label'); l.textContent = c.libelle; l.setAttribute('for', 'p-' + c.id);
+      var champ;
+      if (c.type === 'choix') {
+        champ = document.createElement('select');
+        c.options.forEach(function (v) { var o = document.createElement('option'); o.value = v.valeur; o.textContent = v.libelle; champ.appendChild(o); });
+      } else if (c.type === 'texte-long') {
+        champ = document.createElement('textarea');
+      } else {
+        champ = document.createElement('input'); champ.type = c.type === 'nombre' ? 'number' : 'text';
+      }
+      champ.id = 'p-' + c.id; champ.value = c.defaut;
+      els.parametres.appendChild(l); els.parametres.appendChild(champ);
+    });
+    fetch('/api/agent/scenarios/' + encodeURIComponent(scen.courant.id)).then(function (r) { return r.json(); }).then(function (d) {
+      info.textContent = d.description || '';
+      (d.resume.erreurs || []).forEach(function (m) {
+        var e = document.createElement('div'); e.className = 'err'; e.textContent = '⚠ ' + m; info.appendChild(e);
+      });
+      var f = document.createElement('div'); f.textContent = 'Fichier : ' + d.resume.fichier; info.appendChild(f);
+    });
   }
   els.mode.addEventListener('change', remplirMode);
   els.exemple.addEventListener('change', function () {
-    var m = mode(); if (els.exemple.value === '') { return; }
+    var m = mode(); if (m.scenario) { choisirScenario(); return; }
+    if (els.exemple.value === '') { return; }
     var e = m.exemples[Number(els.exemple.value)];
     if (e.t) { els.demande.value = e.t; }
     Object.keys(e.p || {}).forEach(function (k) { var c = document.getElementById('p-' + k); if (c) { c.value = e.p[k]; } });
@@ -232,7 +286,8 @@
 
   function valeursParametres() {
     var p = {};
-    (mode().parametres || []).forEach(function (d) { p[d.id] = document.getElementById('p-' + d.id).value; });
+    var defs = mode().scenario ? (scen.courant ? scen.courant.entree : []) : (mode().parametres || []);
+    defs.forEach(function (d) { p[d.id] = document.getElementById('p-' + d.id).value; });
     return p;
   }
 
@@ -240,6 +295,7 @@
     els['erreur-form'].textContent = '';
     var m = mode(), demande = els.demande.value.trim();
     if (!m.sansDemande && !demande) { els['erreur-form'].textContent = 'Saisissez une demande.'; return; }
+    if (m.scenario && !scen.courant) { els['erreur-form'].textContent = 'Choisissez un scénario.'; return; }
     var r = m.requete(demande, valeursParametres());
     els.lancer.disabled = true;
     fetch(r.url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(r.corps) })
@@ -252,6 +308,18 @@
       .then(function (j) { ouvrir(j.runId); actualiserListe(j.runId); })
       .catch(function (e) { els['erreur-form'].textContent = 'Échec du lancement : ' + e.message; })
       .then(function () { els.lancer.disabled = false; });
+  });
+
+  document.getElementById('apercu').addEventListener('click', function () {
+    els['erreur-form'].textContent = '';
+    if (!scen.courant) { els['erreur-form'].textContent = 'Choisissez un scénario.'; return; }
+    fetch('/api/agent/scenarios/' + encodeURIComponent(scen.courant.id)).then(function (r) { return r.json(); }).then(function (d) {
+      if (!d.apercu.length) { els['erreur-form'].textContent = 'Aperçu impossible : corrigez les erreurs du scénario.'; return; }
+      reinitialiser('apercu');
+      etat.titre = 'Aperçu (prévu, rien n\'est exécuté) : ' + d.resume.titre;
+      d.apercu.forEach(function (e) { appliquer(e); });
+      dessiner();
+    });
   });
 
   // ---------- liste des exécutions ----------
