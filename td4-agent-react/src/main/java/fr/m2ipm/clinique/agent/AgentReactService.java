@@ -94,7 +94,8 @@ public class AgentReactService {
                 suivi.noeud(runId, idModele, List.of(precedent), Evenement.MODELE, "Étape " + numero + " · modèle",
                         Evenement.EN_COURS, null, null, null, null);
                 long debut = System.nanoTime();
-                ChatResponse reponse = SuiviOutils.reessayer(suivi, runId, idModele, () -> modele.call(prompt));
+                final Prompt promptTour = prompt;
+                ChatResponse reponse = SuiviOutils.reessayer(suivi, runId, idModele, () -> modele.call(promptTour));
                 AssistantMessage sortie = reponse.getResult().getOutput();
                 String texte = sortie.getText() == null ? "" : sortie.getText();
                 Jetons jetons = Jetons.de(reponse, prompt, texte);
