@@ -18,6 +18,9 @@ public final class SuiviOutils {
 
     private static final ThreadLocal<Contexte> COURANT = new ThreadLocal<>();
 
+    /** Appels d'outils autorisés par agent et par appel : au-delà, l'outil renvoie un refus au modèle au lieu de s'exécuter. */
+    public static final int MAX_APPELS_OUTILS = 15;
+
     private SuiviOutils() {}
 
     /**
@@ -108,7 +111,14 @@ public final class SuiviOutils {
             if (c == null) {
                 return appel.get();
             }
-            String id = c.parent() + "-o" + c.compteur().incrementAndGet();
+            int numero = c.compteur().incrementAndGet();
+            String id = c.parent() + "-o" + numero;
+            if (numero > MAX_APPELS_OUTILS) {
+                String message = "Plafond de " + MAX_APPELS_OUTILS + " appels d'outils atteint pour cet agent : conclus avec les informations déjà obtenues.";
+                c.suivi().noeud(c.runId(), id, List.of(c.parent()), Evenement.OUTIL, delegue.getToolDefinition().name(),
+                        Evenement.ERREUR, entree, message, null, null);
+                return message;
+            }
             c.suivi().noeud(c.runId(), id, List.of(c.parent()), Evenement.OUTIL, delegue.getToolDefinition().name(),
                     Evenement.EN_COURS, entree, null, null, null);
             long debut = System.nanoTime();

@@ -267,6 +267,8 @@
       els.parametres.appendChild(l); els.parametres.appendChild(champ);
     });
     fetch('/api/agent/scenarios/' + encodeURIComponent(scen.courant.id)).then(function (r) { return r.json(); }).then(function (d) {
+      scen.prevus = d.resume.architecture === 'react' ? [] : d.apercu.map(function (e) { return e.id; });
+      scen.titre = d.resume.titre;
       info.textContent = d.description || '';
       (d.resume.erreurs || []).forEach(function (m) {
         var e = document.createElement('div'); e.className = 'err'; e.textContent = '⚠ ' + m; info.appendChild(e);
@@ -309,6 +311,20 @@
       .catch(function (e) { els['erreur-form'].textContent = 'Échec du lancement : ' + e.message; })
       .then(function () { els.lancer.disabled = false; });
   });
+
+  // Compare le graphe prévu (aperçu) au graphe réel d'une exécution du même scénario.
+  function comparer() {
+    var info = document.getElementById('scenario-info');
+    if (!scen.courant || !scen.prevus || !scen.prevus.length || etat.titre !== scen.titre) { return; }
+    var prevus = new Set(scen.prevus), reels = [];
+    etat.noeuds.forEach(function (n, id) { reels.push(id); });
+    var manquants = scen.prevus.filter(function (id) { return reels.indexOf(id) < 0; });
+    var imprevus = reels.filter(function (id) { return !prevus.has(id) && id.indexOf('.') < 0 && id.indexOf('-o') < 0; });
+    var c = document.createElement('div');
+    c.textContent = 'Prévu / réel : ' + (manquants.length ? 'non atteints : ' + manquants.join(', ') : 'tout le graphe prévu a été atteint')
+      + (imprevus.length ? ' · non prévus : ' + imprevus.join(', ') : '') + '.';
+    info.appendChild(c);
+  }
 
   document.getElementById('apercu').addEventListener('click', function () {
     els['erreur-form'].textContent = '';
@@ -586,7 +602,7 @@
     etat.source = es;
     es.addEventListener('evt', function (ev) {
       var e = JSON.parse(ev.data); appliquer(e); dessiner();
-      if (e.type === 'fin') { es.close(); etat.source = null; actualiserListe(runId); }
+      if (e.type === 'fin') { es.close(); etat.source = null; actualiserListe(runId); comparer(); }
     });
     es.onerror = function () { es.close(); if (etat.source === es) { etat.source = null; } };
   }

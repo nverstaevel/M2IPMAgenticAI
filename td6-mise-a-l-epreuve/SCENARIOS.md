@@ -35,4 +35,6 @@ Agent monProducteur(ChatClient.Builder builder) {
 
 1. `/agents` → type « Scénario (fichier .md) » → choisir le scénario : description, champs et éventuelles erreurs du fichier s'affichent.
 2. **Aperçu du graphe** : le graphe prévu (nœuds en pointillés) sans rien exécuter.
-3. **Lancer et suivre** : le graphe réel se dessine en direct ; comparez-le au graphe prévu (tours supplémentaires, travailleurs non appelés, retours, tokens, durées).
+3. **Lancer et suivre** : le graphe réel se dessine en direct ; la page indique les nœuds prévus non atteints (tour inutile, travailleur non appelé) et les nœuds non prévus ; comparez aussi retours, tokens et durées.
+
+Un agent ne peut pas dépasser 15 appels d'outils par exécution (`SuiviOutils.MAX_APPELS_OUTILS`) : au-delà, l'outil refuse et le nœud passe en erreur.

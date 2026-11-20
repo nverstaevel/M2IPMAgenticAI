@@ -64,4 +64,22 @@ class ScenarioTest {
         assertThat(suivi.evenements("run-s").orElseThrow()).extracting(Evenement::id).contains("plan", "t1", "t2", "synthese", "fin");
         assertThat(o.apercu(d)).extracting(Evenement::id).contains("plan", "t-A", "t-B", "synthese");
     }
+
+    @Test
+    void plafondDAppelsDOutils() {
+        var suivi = new SuiviExecution();
+        suivi.demarrer("run-p", "t");
+        AtomicInteger reels = new AtomicInteger();
+        var outil = new org.springframework.ai.tool.ToolCallback() {
+            public org.springframework.ai.tool.definition.ToolDefinition getToolDefinition() {
+                return org.springframework.ai.tool.definition.ToolDefinition.builder().name("x").description("d").inputSchema("{}").build();
+            }
+            public String call(String entree) { reels.incrementAndGet(); return "ok"; }
+        };
+        var enveloppe = fr.m2ipm.clinique.agent.SuiviOutils.envelopper(outil)[0];
+        try (var p = fr.m2ipm.clinique.agent.SuiviOutils.ouvrir(suivi, "run-p", "n")) {
+            for (int i = 0; i < 20; i++) { enveloppe.call("{}"); }
+        }
+        assertThat(reels.get()).isEqualTo(fr.m2ipm.clinique.agent.SuiviOutils.MAX_APPELS_OUTILS);
+    }
 }

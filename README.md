@@ -31,6 +31,10 @@ Dans tous les cas, pas de `.project` sur le dossier racine : ouvrir le dossier d
 
 Les six projets ont des noms distincts (`clinique-td1` à `clinique-td6`) : Eclipse refuse deux projets du même nom dans un espace de travail.
 
+## Scénarios décrits en Markdown (TD5, TD6)
+
+Chaque architecture se décrit dans un fichier `.md` (en-tête YAML + texte) lu et exécuté par la page `/agents` : voir `SCENARIOS.md` et `scenarios/_modele.md` dans `td5-agents-roles` et `td6-mise-a-l-epreuve`.
+
 ## Vérification
 
 Le workflow GitHub Actions (`.github/workflows/ci.yml`) lance `mvn verify` sur chaque dossier.
