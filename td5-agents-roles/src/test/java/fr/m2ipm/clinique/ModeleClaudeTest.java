@@ -18,9 +18,9 @@ class ModeleClaudeTest {
     @Autowired ApplicationContext contexte;
 
     @Test
-    void leProfilClaudeActiveLeModeleCompatibleOpenAi() {
+    void leProfilClaudeActiveLeModeleAnthropic() {
         Map<String, ChatModel> modeles = contexte.getBeansOfType(ChatModel.class);
         assertThat(modeles).hasSize(1);
-        assertThat(modeles.values().iterator().next().getClass().getSimpleName()).isEqualTo("OpenAiChatModel");
+        assertThat(modeles.values().iterator().next().getClass().getSimpleName()).isEqualTo("AnthropicChatModel");
     }
 }

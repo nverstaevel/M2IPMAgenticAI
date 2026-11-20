@@ -30,7 +30,7 @@ Comportement d'un vrai LLM sur C1–C3, variance des traces, `traces/` des neuf 
 
 1. Créez une clé sur la Claude Console (console.anthropic.com) ; l'API est facturée à l'usage, indépendamment de l'abonnement Claude.ai.
 2. Définissez `ANTHROPIC_API_KEY` dans l'environnement de lancement (Spring Tools : `Run Configurations… > Environment`), jamais dans Git.
-3. Lancez avec le profil `claude` (`mvn spring-boot:run -Dspring-boot.run.profiles=claude`). Modèle par défaut : `claude-haiku-5-5` (rapide, économique) ; `-Dspring.ai.openai.chat.model=claude-sonnet-5-5` pour plus de qualité.
+3. Lancez avec le profil `claude` (`mvn spring-boot:run -Dspring-boot.run.profiles=claude`). Starter `spring-ai-starter-model-anthropic`, modèle par défaut `claude-haiku-5-5` (rapide, économique) ; `-Dspring.ai.anthropic.chat.model=claude-sonnet-5-5` pour plus de qualité.
 
-Le profil passe par la couche de compatibilité OpenAI d'Anthropic, prévue pour tester et comparer, pas pour la production. Ne pas fixer `temperature` (< 1 refusé par les modèles récents) et ne pas combiner avec le profil `local`.
+`temperature`, `top-p` et `top-k` sont ignorés par ce module : inutile de les régler (le paramètre `temperature` de `/api/mesures` n'aura pas d'effet avec Claude).
 **Non vérifié** : aucun appel réel à l'API depuis l'environnement de rédaction.
