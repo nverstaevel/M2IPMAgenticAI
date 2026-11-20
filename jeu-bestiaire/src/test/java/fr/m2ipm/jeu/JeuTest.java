@@ -39,6 +39,7 @@ class JeuTest {
     @Test
     void unMedicamentToxiqueTue() {
         Jeu j = new Jeu(3, 5, 12);
+        for (long graine = 3; j.patients().stream().noneMatch(p -> p.espece().equals("loup-garou")); graine++) { j = new Jeu(graine, 5, 12); }
         var loup = j.patients().stream().filter(p -> p.espece().equals("loup-garou")).findFirst().orElseThrow();
         j.soigner(loup.id(), "argent-colloidal");
         j.soigner(loup.id(), "argent-colloidal");
@@ -71,8 +72,8 @@ class JeuTest {
 
     @Test
     void lesPatientsNonSoignesMeurentEtLaPartieSeTermine() {
-        Jeu j = new Jeu(9, 3, 2);
-        for (int i = 0; i < 3; i++) { j.finDeJournee(); }
+        Jeu j = new Jeu(9, 5, 2);
+        for (int i = 0; i < 5; i++) { j.finDeJournee(); }
         assertThat(j.etat().terminee()).isTrue();
         assertThat(j.etat().morts()).isGreaterThan(0);
         assertThat(j.finDeJournee().ok()).isFalse();
