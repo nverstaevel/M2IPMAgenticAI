@@ -89,6 +89,12 @@ public class SuiviExecution {
         }
     }
 
+    /** Vrai si l'exécution est terminée (ou inconnue). */
+    public boolean termine(String runId) {
+        Run run = runs.get(runId);
+        return run == null || run.termine;
+    }
+
     /** Clôt l'exécution (motif : REPONSE_FINALE, PLAFOND_ETAPES, ERREUR…) et ferme les flux. */
     public void terminer(String runId, String motif) {
         Run run = runs.get(runId);

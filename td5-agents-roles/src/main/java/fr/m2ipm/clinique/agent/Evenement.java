@@ -28,4 +28,5 @@ public record Evenement(long seq, long horodatage, String runId, String type, St
     public static final String OK = "OK";
     public static final String ERREUR = "ERREUR";
     public static final String ATTENTE = "ATTENTE";
+    public static final String PREVU = "PREVU";
 }
