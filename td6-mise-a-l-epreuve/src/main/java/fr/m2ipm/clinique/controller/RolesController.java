@@ -1,5 +1,6 @@
 package fr.m2ipm.clinique.controller;
 
+import fr.m2ipm.clinique.agent.SuiviExecution;
 import fr.m2ipm.clinique.roles.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
@@ -9,6 +10,9 @@ import java.security.Principal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -37,15 +41,18 @@ public class RolesController {
     private final DossierPdfService pdf;
     private final SuperviseurAgent superviseur;
     private final TraiterConsultationWorkflow workflow;
+    private final SuiviExecution suivi;
+    private final ExecutorService executeur = Executors.newVirtualThreadPerTaskExecutor();
     private final Clock horloge = Clock.systemDefaultZone();
 
     public RolesController(DuoService duo, CasBestiaireRepository cas, DossierPdfService pdf,
-                           SuperviseurAgent superviseur, TraiterConsultationWorkflow workflow) {
+                           SuperviseurAgent superviseur, TraiterConsultationWorkflow workflow, SuiviExecution suivi) {
         this.duo = duo;
         this.cas = cas;
         this.pdf = pdf;
         this.superviseur = superviseur;
         this.workflow = workflow;
+        this.suivi = suivi;
     }
 
     @GetMapping("/cas")
@@ -90,6 +97,44 @@ public class RolesController {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, e.getMessage());
         }
     }
+
+    public record Lancement(String runId) {}
+
+    /** Lancements asynchrones pour la page /agents (PERSONNEL) : rendent le runId aussitôt, le graphe se construit en direct. */
+    @PostMapping("/agent/lancer-duo")
+    public Lancement lancerDuo(@Valid @RequestBody DuoRequest r) {
+        CasBestiaire c = cas.parId(r.casId()).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Cas inconnu : " + r.casId()));
+        String runId = UUID.randomUUID().toString();
+        suivi.demarrer(runId, "Duo : cas " + c.id() + " · " + c.creature());
+        executeur.submit(() -> {
+            try { duo.traiter(runId, c, r.profil()); } catch (RuntimeException e) { /* déjà visible dans le graphe */ }
+        });
+        return new Lancement(runId);
+    }
+
+    @PostMapping("/agent/lancer-superviseur")
+    public Lancement lancerSuperviseur(@Valid @RequestBody SuperviseurRequest r) {
+        String runId = UUID.randomUUID().toString();
+        suivi.demarrer(runId, "Superviseur : " + r.demande());
+        executeur.submit(() -> {
+            try { superviseur.executer(runId, r.demande()); } catch (RuntimeException e) { /* déjà visible dans le graphe */ }
+        });
+        return new Lancement(runId);
+    }
+
+    @PostMapping("/agent/lancer-workflow")
+    public Lancement lancerWorkflow(@Valid @RequestBody WorkflowRequest r) {
+        String runId = UUID.randomUUID().toString();
+        suivi.demarrer(runId, "Workflow : " + r.creature());
+        LocalDate jour = r.jour() == null ? LocalDate.now().plusDays(1) : r.jour();
+        executeur.submit(() -> {
+            try { workflow.traiter(runId, r.creature(), r.symptome(), jour); } catch (RuntimeException e) { /* déjà visible dans le graphe */ }
+        });
+        return new Lancement(runId);
+    }
+
+    @jakarta.annotation.PreDestroy
+    void arreter() { executeur.shutdownNow(); }
 
     private DossierRun trouver(String runId) {
         return duo.run(runId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Dossier inconnu : " + runId));

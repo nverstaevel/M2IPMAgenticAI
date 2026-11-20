@@ -23,7 +23,8 @@ public class GardienDuBestiaire {
 
     @Autowired
     public GardienDuBestiaire(ChatClient.Builder builder, OutilsBestiaire bestiaire) {
-        this(builder.defaultSystem(SYSTEME).defaultTools(bestiaire).build());
+        this(builder.defaultSystem(SYSTEME).defaultToolCallbacks(fr.m2ipm.clinique.agent.SuiviOutils.envelopper(
+                org.springframework.ai.support.ToolCallbacks.from(bestiaire))).build());
     }
 
     public GardienDuBestiaire(ChatClient client) { this.client = client; }
