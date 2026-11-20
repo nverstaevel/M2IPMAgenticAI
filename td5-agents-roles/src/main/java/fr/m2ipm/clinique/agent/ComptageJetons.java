@@ -37,7 +37,7 @@ public final class ComptageJetons {
             public String getName() { return "ComptageJetons"; }
 
             @Override
-            public int getOrder() { return Ordered.LOWEST_PRECEDENCE; }
+            public int getOrder() { return Ordered.LOWEST_PRECEDENCE - 1000; } // juste avant l'advisor terminal qui appelle le modèle
 
             @Override
             public ChatClientResponse adviseCall(ChatClientRequest requete, CallAdvisorChain chaine) {
