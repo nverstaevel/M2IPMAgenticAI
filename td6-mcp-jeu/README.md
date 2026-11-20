@@ -19,6 +19,8 @@ Cumulatif sur le TD5. **Ne pas distribuer avant la fin du TD6.**
 3. `GET /api/agent/jeu/outils` doit répondre `connecte: true`.
 4. `POST /api/agent/jeu/partie?scenario=jeu-equipe&graine=42`, puis lire les journées dans `/agents`.
 
+Pour suivre la partie en direct : http://localhost:8090 (créatures animées, jauges de jours restants).
+
 ## Tests
 
 `JoueurTest` (outils MCP simulés) ; `LiaisonMcpTest` joue contre un vrai serveur et n'est activé que par `-Djeu.reel=true` (la CI démarre le jeu avant). Aucun test ne nécessite un vrai modèle.

@@ -46,7 +46,9 @@ cd td6-mcp-jeu && mvn spring-boot:run -Dspring-boot.run.profiles=<modèle>,jeu  
 curl -u gribouille:gribouille -X POST "localhost:8080/api/agent/jeu/partie?scenario=jeu-equipe&graine=42"
 ```
 
-Un dépôt étudiants (code fourni à chaque TD) viendra séparément ; le jeu y sera livré sans ce corrigé.
+Le dépôt étudiants, [M2IPMAgenticAI_Student](https://github.com/nverstaevel/M2IPMAgenticAI_Student), contient le point de départ de chaque TD (corrigé du TD précédent + squelettes « À écrire ») et le jeu, sans ce corrigé. Il est généré à partir de ce dépôt : tout changement du jeu ou d'un corrigé est à reporter à la main côté étudiants.
+
+Le jeu a une page animée sur http://localhost:8090 (salle d'attente, jours restants par patient) où l'on peut aussi jouer à la main : c'est la référence humaine du TD6.
 
 ## Vérification
 
