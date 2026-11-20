@@ -16,7 +16,16 @@ Chaque dossier est un projet Maven autonome : il contient l'état complet de l'a
 | `jeu-bestiaire` | Le jeu « Clinique du bestiaire » (port 8090), serveur MCP fourni aux étudiants | écrit, CI verte |
 | `td6-mcp-jeu` | Client MCP : Gribouille joue au jeu, architectures d'agents comparées par score | écrit, CI verte (liaison MCP réelle testée) |
 
-Ne pas distribuer aux étudiants avant la fin du TD concerné.
+Les corrigés sont publics dans ce dépôt : pour les étudiants, utiliser le dépôt [M2IPMAgenticAI_Student](https://github.com/nverstaevel/M2IPMAgenticAI_Student) (corrigé du TD précédent + squelettes). Ne pas leur communiquer l'adresse de celui-ci avant la fin du TD concerné.
+
+## Supports du cours (`supports/`)
+
+| Dossier | Contenu |
+|---|---|
+| `supports/cm/` | Les trois CM (142 slides) : `CM.md` (version texte lisible, notes enseignant comprises), `slides/*.html`, `deck.json`, `deck.css` (sources de l'éditeur de slides) |
+| `supports/evaluation/` | `matrice-competences.md` : matrice de compétences distribuée aux étudiants (échelle, mode d'emploi, 19 compétences) |
+
+Les sujets de TD (Google/Claude Docs) ne sont pas encore versionnés ici. Le CM4 est l'évaluation de TD (1 h sur machine) : il n'a pas de support. Voir `supports/README.md`.
 
 ## Ouvrir les projets dans Spring Tools (Eclipse) ou IntelliJ
 
