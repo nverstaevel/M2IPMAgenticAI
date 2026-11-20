@@ -112,12 +112,20 @@
   // ---- Types d'agents proposés (une entrée par agent du cours ; les TD suivants en ajoutent) ----
   var MODES = [
     {
-      id: 'react', libelle: 'Agent ReAct (TD4)',
+      id: 'react', libelle: 'Agent ReAct',
       exemples: [
-        'Combien coûte une consultation pour un dragon, et reste-t-il de la poudre de lune ?',
-        'Quels créneaux sont libres le 3 décembre 2026 ?',
-        'Que dit Wikipédia sur le phénix, et combien coûte une consultation pour un phénix ?',
-        'Quel est le tarif d\'une consultation pour un canard ?'
+        { l: '1 outil · tarif', t: 'Quel est le tarif d\'une consultation pour un dragon ?' },
+        { l: '2 outils · stock + fiche', t: 'Reste-t-il du baume ignifuge en pharmacie, et quelles sont ses contre-indications pour un dragon ?' },
+        { l: 'Enchaînement · propriétaire → créatures → tarifs', t: 'Quelles sont les créatures de Gaspard Fumerolle, et combien coûte une consultation pour chacune ?' },
+        { l: 'Enchaînement · historique', t: 'Quel est le dernier diagnostic de Lunatique et quel soigneur l\'a reçu ?' },
+        { l: 'Adaptation · rupture de stock', t: 'Reste-t-il de la poudre de lune ? Si non, propose un autre médicament adapté à un loup-garou et vérifie son stock.' },
+        { l: 'Contre-indication à repérer', t: 'Monsieur Crépuscule est un vampire fatigué : peut-on lui donner de la poudre de lune ?' },
+        { l: 'Agenda · créneaux (jour piégé : voir l\'événement)', t: 'Quels créneaux sont libres le 3 décembre 2026 ?' },
+        { l: 'Agenda · proposition (jamais créée sans le personnel)', t: 'Propose une consultation pour Paillette le 4 décembre 2026 à 10h pour un sabot fendu.' },
+        { l: 'Source externe · Wikipédia + tarif', t: 'Que dit Wikipédia sur le phénix, et combien coûte une consultation pour un phénix ?' },
+        { l: 'Cas limite · espèce inconnue', t: 'Quel est le tarif d\'une consultation pour un canard ?' },
+        { l: 'Cas limite · demande impossible', t: 'Réserve-moi un vol pour Mars.' },
+        { l: 'Plafond d\'étapes (réglé à 3)', t: 'Pour chaque espèce de la clinique, donne le tarif de consultation et le soigneur compétent.', p: { maxEtapes: 3 } }
       ],
       parametres: [{ id: 'maxEtapes', libelle: 'Étapes maximum', type: 'number', min: 1, max: 20, valeur: 8 }],
       requete: function (demande, p) { return { url: '/api/agent/lancer', corps: { demande: demande, maxEtapes: Number(p.maxEtapes) || 8 } }; }
@@ -140,7 +148,7 @@
     var m = mode();
     els.exemple.innerHTML = '';
     var vide = document.createElement('option'); vide.value = ''; vide.textContent = '(choisir un exemple)'; els.exemple.appendChild(vide);
-    (m.exemples || []).forEach(function (t, i) { var o = document.createElement('option'); o.value = String(i); o.textContent = t.length > 70 ? t.slice(0, 70) + '…' : t; els.exemple.appendChild(o); });
+    (m.exemples || []).forEach(function (e, i) { var o = document.createElement('option'); o.value = String(i); o.textContent = e.l; els.exemple.appendChild(o); });
     els.parametres.innerHTML = '';
     (m.parametres || []).forEach(function (p) {
       var l = document.createElement('label'); l.textContent = p.libelle; l.setAttribute('for', 'p-' + p.id);
@@ -160,7 +168,10 @@
   }
   els.mode.addEventListener('change', remplirMode);
   els.exemple.addEventListener('change', function () {
-    var m = mode(); if (els.exemple.value !== '') { els.demande.value = m.exemples[Number(els.exemple.value)]; }
+    var m = mode(); if (els.exemple.value === '') { return; }
+    var e = m.exemples[Number(els.exemple.value)];
+    if (e.t) { els.demande.value = e.t; }
+    Object.keys(e.p || {}).forEach(function (k) { var c = document.getElementById('p-' + k); if (c) { c.value = e.p[k]; } });
   });
   remplirMode();
 

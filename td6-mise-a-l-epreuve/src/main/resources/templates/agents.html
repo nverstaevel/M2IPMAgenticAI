@@ -112,37 +112,62 @@
   // ---- Types d'agents proposés (une entrée par agent du cours ; les TD suivants en ajoutent) ----
   var MODES = [
     {
-      id: 'react', libelle: 'Agent ReAct (TD4)',
+      id: 'react', libelle: 'Agent ReAct',
       exemples: [
-        'Combien coûte une consultation pour un dragon, et reste-t-il de la poudre de lune ?',
-        'Quels créneaux sont libres le 3 décembre 2026 ?',
-        'Que dit Wikipédia sur le phénix, et combien coûte une consultation pour un phénix ?',
-        'Quel est le tarif d\'une consultation pour un canard ?'
+        { l: '1 outil · tarif', t: 'Quel est le tarif d\'une consultation pour un dragon ?' },
+        { l: '2 outils · stock + fiche', t: 'Reste-t-il du baume ignifuge en pharmacie, et quelles sont ses contre-indications pour un dragon ?' },
+        { l: 'Enchaînement · propriétaire → créatures → tarifs', t: 'Quelles sont les créatures de Gaspard Fumerolle, et combien coûte une consultation pour chacune ?' },
+        { l: 'Enchaînement · historique', t: 'Quel est le dernier diagnostic de Lunatique et quel soigneur l\'a reçu ?' },
+        { l: 'Adaptation · rupture de stock', t: 'Reste-t-il de la poudre de lune ? Si non, propose un autre médicament adapté à un loup-garou et vérifie son stock.' },
+        { l: 'Contre-indication à repérer', t: 'Monsieur Crépuscule est un vampire fatigué : peut-on lui donner de la poudre de lune ?' },
+        { l: 'Agenda · créneaux (jour piégé : voir l\'événement)', t: 'Quels créneaux sont libres le 3 décembre 2026 ?' },
+        { l: 'Agenda · proposition (jamais créée sans le personnel)', t: 'Propose une consultation pour Paillette le 4 décembre 2026 à 10h pour un sabot fendu.' },
+        { l: 'Source externe · Wikipédia + tarif', t: 'Que dit Wikipédia sur le phénix, et combien coûte une consultation pour un phénix ?' },
+        { l: 'Cas limite · espèce inconnue', t: 'Quel est le tarif d\'une consultation pour un canard ?' },
+        { l: 'Cas limite · demande impossible', t: 'Réserve-moi un vol pour Mars.' },
+        { l: 'Plafond d\'étapes (réglé à 3)', t: 'Pour chaque espèce de la clinique, donne le tarif de consultation et le soigneur compétent.', p: { maxEtapes: 3 } }
       ],
       parametres: [{ id: 'maxEtapes', libelle: 'Étapes maximum', type: 'number', min: 1, max: 20, valeur: 8 }],
       requete: function (demande, p) { return { url: '/api/agent/lancer', corps: { demande: demande, maxEtapes: Number(p.maxEtapes) || 8 } }; }
-    },
+    }    ,
     {
-      id: 'duo', libelle: 'Duo vétérinaire ↔ gardien (TD5)', sansDemande: true,
-      exemples: [],
+      id: 'duo', libelle: 'Duo vétérinaire ↔ gardien', sansDemande: true,
+      exemples: [
+        { l: 'Cas 1 · loup-garou, PRESSÉ → rejet attendu, puis correction', p: { casId: 1, profil: 'PRESSE' } },
+        { l: 'Cas 1 · loup-garou, PRUDENT → approbation attendue', p: { casId: 1, profil: 'PRUDENT' } },
+        { l: 'Cas 2 · vampire, PRESSÉ → rejet attendu (soleil)', p: { casId: 2, profil: 'PRESSE' } },
+        { l: 'Cas 3 · dragon, PRESSÉ → approbation attendue', p: { casId: 3, profil: 'PRESSE' } },
+        { l: 'Cas 4 · phénix, PRUDENT → approbation attendue', p: { casId: 4, profil: 'PRUDENT' } },
+        { l: 'Cas 5 · yéti, PRESSÉ → doute attendu, renvoi à un humain', p: { casId: 5, profil: 'PRESSE' } }
+      ],
       parametres: [
-        { id: 'casId', libelle: 'Numéro du cas (voir /api/cas)', type: 'number', min: 1, max: 99, valeur: 1 },
-        { id: 'profil', libelle: 'Profil du vétérinaire', type: 'select', options: [ ['PRUDENT', 'PRUDENT (vérifie)'], ['PRESSE', 'PRESSÉ (provoque des erreurs)'] ], valeur: 'PRESSE' }
+        { id: 'casId', libelle: 'Cas du bestiaire', type: 'select', valeur: '1', options: [ ['1', '1 · Lunatique (loup-garou)'], ['2', '2 · Monsieur Crépuscule (vampire)'], ['3', '3 · Flammèche (dragon)'], ['4', '4 · Rebelote (phénix)'], ['5', '5 · Grognon (yéti)'] ] },
+        { id: 'profil', libelle: 'Profil du vétérinaire', type: 'select', valeur: 'PRESSE', options: [ ['PRUDENT', 'PRUDENT (vérifie)'], ['PRESSE', 'PRESSÉ (provoque des erreurs)'] ] }
       ],
       requete: function (demande, p) { return { url: '/api/agent/lancer-duo', corps: { casId: Number(p.casId) || 1, profil: p.profil } }; }
     },
     {
-      id: 'superviseur', libelle: 'Superviseur et travailleurs (TD5)',
+      id: 'superviseur', libelle: 'Superviseur et travailleurs',
       exemples: [
-        'Quel est le tarif d\'une consultation pour Lunatique, reste-t-il de l\'élixir de valériane, et quels créneaux sont libres demain ?',
-        'Donne-moi le dossier de Lunatique et les médicaments adaptés à son espèce.'
+        { l: '1 travailleur · dossier', t: 'Donne-moi le dossier de Lunatique et son dernier diagnostic.' },
+        { l: '1 travailleur · pharmacie', t: 'Quel est le stock d\'élixir de valériane et sa dose pour un loup-garou ?' },
+        { l: '2 travailleurs · dossier + agenda', t: 'Trouve la créature de Morgane Brumevent qui est un phénix et liste les créneaux libres le 4 décembre 2026.' },
+        { l: '3 travailleurs · le plan complet', t: 'Pour Flammèche : donne son dossier, le tarif de consultation et le stock de baume ignifuge, et liste les créneaux libres le 4 décembre 2026.' },
+        { l: 'Plan à adapter · pas de stock', t: 'Lunatique n\'arrive pas à dormir : trouve un médicament en stock adapté, avec son tarif de consultation.' },
+        { l: 'Hors périmètre · aucun travailleur adapté', t: 'Commande-moi un nouveau lot de poudre de lune chez le fournisseur.' }
       ],
       parametres: [],
       requete: function (demande) { return { url: '/api/agent/lancer-superviseur', corps: { demande: demande } }; }
     },
     {
-      id: 'workflow', libelle: 'Workflow en code Java (TD5)', sansDemande: true,
-      exemples: [],
+      id: 'workflow', libelle: 'Workflow en code Java (sans modèle)', sansDemande: true,
+      exemples: [
+        { l: 'Succès · Lunatique, insomnie', p: { creature: 'Lunatique', symptome: 'insomnie', jour: '' } },
+        { l: 'Succès · Flammèche, toux', p: { creature: 'Flammèche', symptome: 'toux', jour: '' } },
+        { l: 'Échec · créature inconnue', p: { creature: 'Pégase', symptome: 'toux', jour: '' } },
+        { l: 'Échec · aucun médicament pour ce symptôme', p: { creature: 'Paillette', symptome: 'insomnie', jour: '' } },
+        { l: 'Succès · Monsieur Crépuscule, fatigue (sérum, stock limité)', p: { creature: 'Monsieur Crépuscule', symptome: 'fatigue', jour: '' } }
+      ],
       parametres: [
         { id: 'creature', libelle: 'Créature', type: 'text', valeur: 'Lunatique' },
         { id: 'symptome', libelle: 'Symptôme', type: 'text', valeur: 'insomnie' },
@@ -172,7 +197,7 @@
     var m = mode();
     els.exemple.innerHTML = '';
     var vide = document.createElement('option'); vide.value = ''; vide.textContent = '(choisir un exemple)'; els.exemple.appendChild(vide);
-    (m.exemples || []).forEach(function (t, i) { var o = document.createElement('option'); o.value = String(i); o.textContent = t.length > 70 ? t.slice(0, 70) + '…' : t; els.exemple.appendChild(o); });
+    (m.exemples || []).forEach(function (e, i) { var o = document.createElement('option'); o.value = String(i); o.textContent = e.l; els.exemple.appendChild(o); });
     els.parametres.innerHTML = '';
     (m.parametres || []).forEach(function (p) {
       var l = document.createElement('label'); l.textContent = p.libelle; l.setAttribute('for', 'p-' + p.id);
@@ -192,7 +217,10 @@
   }
   els.mode.addEventListener('change', remplirMode);
   els.exemple.addEventListener('change', function () {
-    var m = mode(); if (els.exemple.value !== '') { els.demande.value = m.exemples[Number(els.exemple.value)]; }
+    var m = mode(); if (els.exemple.value === '') { return; }
+    var e = m.exemples[Number(els.exemple.value)];
+    if (e.t) { els.demande.value = e.t; }
+    Object.keys(e.p || {}).forEach(function (k) { var c = document.getElementById('p-' + k); if (c) { c.value = e.p[k]; } });
   });
   remplirMode();
 
