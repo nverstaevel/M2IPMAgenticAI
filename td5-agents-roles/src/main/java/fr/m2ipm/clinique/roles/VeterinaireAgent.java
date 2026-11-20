@@ -31,7 +31,8 @@ public class VeterinaireAgent {
 
     @Autowired
     public VeterinaireAgent(ChatClient.Builder builder, OutilsClinique clinique, OutilsPharmacie pharmacie) {
-        this(builder.defaultTools(clinique, pharmacie).build());
+        this(builder.defaultToolCallbacks(fr.m2ipm.clinique.agent.SuiviOutils.envelopper(
+                org.springframework.ai.support.ToolCallbacks.from(clinique, pharmacie))).build());
     }
 
     public VeterinaireAgent(ChatClient client) { this.client = client; }

@@ -46,20 +46,26 @@ public class AgentReactService {
     private final ChatModel modele;
     private final ToolCallback[] outils;
     private final TraceStore traces;
+    private final SuiviExecution suivi;
     private final ToolCallingManager gestionnaire = ToolCallingManager.builder().build();
     private final int budgetTokens;
 
     @Autowired
     public AgentReactService(ChatModel modele, OutilsClinique clinique, OutilsExternes externes, TraceStore traces,
-                             @Value("${agent.budget-tokens:20000}") int budgetTokens) {
-        this(modele, ToolCallbacks.from(clinique, externes), traces, budgetTokens);
+                             SuiviExecution suivi, @Value("${agent.budget-tokens:20000}") int budgetTokens) {
+        this(modele, ToolCallbacks.from(clinique, externes), traces, suivi, budgetTokens);
     }
 
-    /** Constructeur de test : outils quelconques, modèle scripté. */
+    /** Constructeur de test : outils quelconques, modèle scripté, suivi en mémoire. */
     public AgentReactService(ChatModel modele, ToolCallback[] outils, TraceStore traces, int budgetTokens) {
+        this(modele, outils, traces, new SuiviExecution(), budgetTokens);
+    }
+
+    public AgentReactService(ChatModel modele, ToolCallback[] outils, TraceStore traces, SuiviExecution suivi, int budgetTokens) {
         this.modele = modele;
         this.outils = outils;
         this.traces = traces;
+        this.suivi = suivi;
         this.budgetTokens = budgetTokens;
     }
 
@@ -71,6 +77,8 @@ public class AgentReactService {
     }
 
     public ResultatAgent executer(String runId, String demande, int maxEtapes) {
+        suivi.demarrer(runId, "ReAct : " + abreger(demande));
+        suivi.noeud(runId, "demande", List.of(), Evenement.UTILISATEUR, "Demande", Evenement.OK, demande, null, null, null);
         ToolCallingChatOptions options = ToolCallingChatOptions.builder()
                 .toolCallbacks(outils)
                 .toolContext(Map.of("conversationId", runId))
@@ -79,18 +87,27 @@ public class AgentReactService {
         List<Etape> etapes = new ArrayList<>();
         int tokens = 0;
         String appelPrecedent = null;
+        String precedent = "demande";
+        String enCours = null;
+        ResultatAgent resultatFinal;
         try {
             for (int numero = 1; ; numero++) {
+                String idModele = "e" + numero;
+                enCours = idModele;
+                suivi.noeud(runId, idModele, List.of(precedent), Evenement.MODELE, "Étape " + numero + " · modèle",
+                        Evenement.EN_COURS, null, null, null, null);
                 long debut = System.nanoTime();
                 ChatResponse reponse = modele.call(prompt);
                 AssistantMessage sortie = reponse.getResult().getOutput();
                 String texte = sortie.getText() == null ? "" : sortie.getText();
                 int tokensEtape = tokens(reponse, prompt, texte);
                 tokens += tokensEtape;
+                suivi.maj(runId, idModele, Evenement.OK, texte, null, ms(debut), tokensEtape);
 
                 if (!reponse.hasToolCalls()) {
                     enregistrer(runId, etapes, new Etape(numero, texte, "", "", "", ms(debut), tokensEtape));
-                    return new ResultatAgent(texte, MotifArret.REPONSE_FINALE, etapes, tokens);
+                    resultatFinal = new ResultatAgent(texte, MotifArret.REPONSE_FINALE, etapes, tokens);
+                    return cloturer(runId, idModele, resultatFinal, texte);
                 }
 
                 var appels = sortie.getToolCalls();
@@ -98,32 +115,59 @@ public class AgentReactService {
                 String arguments = appels.size() == 1 ? appels.get(0).arguments()
                         : appels.stream().map(AssistantMessage.ToolCall::arguments).collect(Collectors.joining(",", "[", "]"));
                 String signature = noms + arguments;
+                String idOutil = idModele + "-outil";
+                enCours = idOutil;
+                suivi.noeud(runId, idOutil, List.of(idModele), Evenement.OUTIL, noms, Evenement.EN_COURS, arguments, null, null, null);
 
                 if (Objects.equals(signature, appelPrecedent)) {
-                    enregistrer(runId, etapes, new Etape(numero, texte, noms, arguments,
-                            "(non exécuté : même appel que l'étape précédente)", ms(debut), tokensEtape));
-                    return new ResultatAgent("Arrêt : l'agent répète le même appel (" + noms + ").",
+                    String msg = "(non exécuté : même appel que l'étape précédente)";
+                    enregistrer(runId, etapes, new Etape(numero, texte, noms, arguments, msg, ms(debut), tokensEtape));
+                    suivi.maj(runId, idOutil, Evenement.ERREUR, null, msg, null, null);
+                    resultatFinal = new ResultatAgent("Arrêt : l'agent répète le même appel (" + noms + ").",
                             MotifArret.BOUCLE_DETECTEE, etapes, tokens);
+                    return cloturer(runId, idOutil, resultatFinal, resultatFinal.reponse());
                 }
                 appelPrecedent = signature;
 
+                long debutOutil = System.nanoTime();
                 ToolExecutionResult execution = gestionnaire.executeToolCalls(prompt, reponse);
                 String resultat = resultatsOutils(execution.conversationHistory());
+                suivi.maj(runId, idOutil, Evenement.OK, null, tronquer(resultat), ms(debutOutil), null);
                 enregistrer(runId, etapes, new Etape(numero, texte, noms, arguments, tronquer(resultat), ms(debut), tokensEtape));
+                precedent = idOutil;
 
                 if (tokens >= budgetTokens) {
-                    return new ResultatAgent("Arrêt : budget de " + budgetTokens + " tokens atteint.",
+                    resultatFinal = new ResultatAgent("Arrêt : budget de " + budgetTokens + " tokens atteint.",
                             MotifArret.BUDGET_TOKENS, etapes, tokens);
+                    return cloturer(runId, idOutil, resultatFinal, resultatFinal.reponse());
                 }
                 if (numero >= maxEtapes) {
-                    return new ResultatAgent("Arrêt : plafond de " + maxEtapes + " étapes atteint.",
+                    resultatFinal = new ResultatAgent("Arrêt : plafond de " + maxEtapes + " étapes atteint.",
                             MotifArret.PLAFOND_ETAPES, etapes, tokens);
+                    return cloturer(runId, idOutil, resultatFinal, resultatFinal.reponse());
                 }
                 prompt = new Prompt(execution.conversationHistory(), options);
             }
         } catch (RuntimeException e) {
-            return new ResultatAgent("Erreur : " + e.getMessage(), MotifArret.ERREUR, etapes, tokens);
+            if (enCours != null) {
+                suivi.maj(runId, enCours, Evenement.ERREUR, null, String.valueOf(e.getMessage()), null, null);
+            }
+            resultatFinal = new ResultatAgent("Erreur : " + e.getMessage(), MotifArret.ERREUR, etapes, tokens);
+            return cloturer(runId, enCours == null ? "demande" : enCours, resultatFinal, resultatFinal.reponse());
         }
+    }
+
+    /** Nœud final du graphe (réponse ou motif d'arrêt), puis fin du suivi. */
+    private ResultatAgent cloturer(String runId, String parent, ResultatAgent r, String message) {
+        String libelle = r.motif() == MotifArret.REPONSE_FINALE ? "Réponse finale" : "Arrêt : " + r.motif();
+        suivi.noeud(runId, "fin", List.of(parent), Evenement.FIN, libelle,
+                r.motif() == MotifArret.REPONSE_FINALE ? Evenement.OK : Evenement.ERREUR, message, null, null, r.tokens());
+        suivi.terminer(runId, r.motif().name());
+        return r;
+    }
+
+    private static String abreger(String s) {
+        return s.length() > 60 ? s.substring(0, 60) + "…" : s;
     }
 
     private void enregistrer(String runId, List<Etape> etapes, Etape etape) {

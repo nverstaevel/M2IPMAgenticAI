@@ -5,7 +5,7 @@
 <nav th:replace="~{fragments :: menu}"></nav>
 <style>
   body { max-width: none; margin: 0 1rem 1rem; }
-  #mise { display: grid; grid-template-columns: minmax(18rem, 22rem) 1fr minmax(18rem, 24rem); gap: .8rem; align-items: start; }
+  #mise { display: grid; grid-template-columns: minmax(15rem, 17rem) 1fr minmax(16rem, 21rem); gap: .8rem; align-items: start; }
   .panneau { border: 1px solid #ccc; border-radius: 6px; padding: .6rem; background: #fff; }
   .panneau h2 { font-size: 1rem; margin: 0 0 .4rem; }
   label { display: block; margin: .4rem 0 .15rem; font-size: .85rem; color: #444; }
@@ -34,14 +34,15 @@
   @keyframes pouls { 0%, 100% { stroke-opacity: 1; } 50% { stroke-opacity: .25; } }
   .G-UTILISATEUR rect.corps { stroke: #5d6d7e; } .G-MODELE rect.corps { stroke: #7d3c98; } .G-OUTIL rect.corps { stroke: #d68910; }
   .G-AGENT rect.corps { stroke: #2471a3; } .G-CRITIQUE rect.corps { stroke: #c0392b; } .G-TRAVAILLEUR rect.corps { stroke: #229954; }
-  .G-HUMAIN rect.corps { stroke: #b7950b; } .G-FIN rect.corps { stroke: #1e8449; }
+  .G-HUMAIN rect.corps { stroke: #b7950b; } .G-CODE rect.corps { stroke: #566573; }
+  .noeud.ATTENTE rect.corps { stroke-dasharray: 6 4; fill: #fffbea; } .G-FIN rect.corps { stroke: #1e8449; }
   .G-FIN.OK rect.corps { fill: #eafaf1; }
   .bandeau { height: 6px; rx: 3; }
   .lien { fill: none; stroke: #8a8f98; stroke-width: 2; marker-end: url(#fleche); transition: opacity .4s; }
   .lien.nouveau { opacity: 0; }
   #detail pre { white-space: pre-wrap; word-break: break-word; background: #f4f4f4; padding: .4rem; border-radius: 4px; max-height: 14rem; overflow: auto; font-size: .82rem; margin: .15rem 0 .5rem; }
   #detail dt { font-weight: 600; font-size: .82rem; color: #444; } #detail dd { margin: 0 0 .4rem; }
-  #journal { font-size: .8rem; max-height: 9rem; overflow: auto; color: #333; margin: .3rem 0 0; padding-left: 1rem; }
+  #journal { font-size: .8rem; max-height: 9rem; overflow: auto; color: #333; margin: .3rem 0 0; padding-left: 1.8rem; }
   .erreur-form { color: #a00; font-size: .85rem; min-height: 1.1rem; }
 </style>
 
@@ -104,7 +105,7 @@
   var GENRES = {
     UTILISATEUR: ['Demande', '#5d6d7e'], MODELE: ['Appel du modèle', '#7d3c98'], OUTIL: ['Outil', '#d68910'],
     AGENT: ['Agent', '#2471a3'], CRITIQUE: ['Critique', '#c0392b'], TRAVAILLEUR: ['Travailleur', '#229954'],
-    HUMAIN: ['Validation humaine', '#b7950b'], FIN: ['Résultat', '#1e8449']
+    HUMAIN: ['Validation humaine', '#b7950b'], CODE: ['Code Java (sans modèle)', '#566573'], FIN: ['Résultat', '#1e8449']
   };
   var NS = 'http://www.w3.org/2000/svg';
 

@@ -19,10 +19,12 @@ public record Evenement(long seq, long horodatage, String runId, String type, St
     public static final String CRITIQUE = "CRITIQUE";
     public static final String TRAVAILLEUR = "TRAVAILLEUR";
     public static final String HUMAIN = "HUMAIN";
+    public static final String CODE = "CODE";
     public static final String FIN = "FIN";
 
     /** Statuts d'un nœud. */
     public static final String EN_COURS = "EN_COURS";
     public static final String OK = "OK";
     public static final String ERREUR = "ERREUR";
+    public static final String ATTENTE = "ATTENTE";
 }
