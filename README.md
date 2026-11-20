@@ -13,7 +13,8 @@ Chaque dossier est un projet Maven autonome : il contient l'état complet de l'a
 | `td3-outils-externes` | Wikipedia, Excel, base externe, Google Agenda, expérience de contexte | écrit, CI verte (43 tests, sources simulées) |
 | `td4-agent-react` | Boucle ReAct écrite à la main, traces | écrit, CI verte (54 tests, modèle simulé) |
 | `td5-agents-roles` | Actor-critic (gardien du bestiaire), dossier PDF, superviseur | écrit, CI verte (modèle simulé) |
-| `td6-mise-a-l-epreuve` | Garde-fous, attaques, reproductibilité | écrit, CI verte (90 tests, modèle simulé) |
+| `jeu-bestiaire` | Le jeu « Clinique du bestiaire » (port 8090), serveur MCP fourni aux étudiants | écrit, CI verte |
+| `td6-mcp-jeu` | Client MCP : Gribouille joue au jeu, architectures d'agents comparées par score | écrit, CI verte (liaison MCP réelle testée) |
 
 Ne pas distribuer aux étudiants avant la fin du TD concerné.
 
@@ -29,11 +30,23 @@ Le dépôt n'est pas un projet unique : chaque dossier `tdN-…` est un projet M
 
 Dans tous les cas, pas de `.project` sur le dossier racine : ouvrir le dossier d'un TD, pas la racine, avec l'import « General ».
 
-Les six projets ont des noms distincts (`clinique-td1` à `clinique-td6`) : Eclipse refuse deux projets du même nom dans un espace de travail.
+Les projets de la clinique ont des noms distincts (`clinique-td1` à `clinique-td6`) : Eclipse refuse deux projets du même nom dans un espace de travail.
 
 ## Scénarios décrits en Markdown (TD5, TD6)
 
-Chaque architecture se décrit dans un fichier `.md` (titre, agents, graphe en flèches `a -> b`, boucles, outils autorisés) lu et exécuté par la page `/agents` : voir `SCENARIOS.md` et `scenarios/_modele.md` dans `td5-agents-roles` et `td6-mise-a-l-epreuve`.
+Chaque architecture se décrit dans un fichier `.md` (titre, agents, graphe en flèches `a -> b`, boucles, outils autorisés) lu et exécuté par la page `/agents` : voir `SCENARIOS.md` et `scenarios/_modele.md` dans `td5-agents-roles` et `td6-mcp-jeu`.
+
+## Le TD6 : le jeu et MCP
+
+`jeu-bestiaire` est une application Spring Boot indépendante (patients à diagnostiquer, pharmacie, trésorerie, 5 jours, score) qui publie huit outils par MCP (Streamable HTTP, `http://localhost:8090/mcp`). Les étudiants n'y touchent pas : ils branchent la clinique dessus (`td6-mcp-jeu`) et conçoivent l'architecture d'agents qui joue.
+
+```bash
+mvn -f jeu-bestiaire/pom.xml spring-boot:run                      # terminal 1 : le jeu (8090)
+cd td6-mcp-jeu && mvn spring-boot:run -Dspring-boot.run.profiles=<modèle>,jeu   # terminal 2 : la clinique (8080)
+curl -u gribouille:gribouille -X POST "localhost:8080/api/agent/jeu/partie?scenario=jeu-equipe&graine=42"
+```
+
+Un dépôt étudiants (code fourni à chaque TD) viendra séparément ; le jeu y sera livré sans ce corrigé.
 
 ## Vérification
 

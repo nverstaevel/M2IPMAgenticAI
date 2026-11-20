@@ -90,3 +90,7 @@ Agent monProducteur(ChatClient.Builder builder) {
 1. `/agents` → « Scénario (fichier .md) » → choisir le scénario : description, champs, erreurs éventuelles.
 2. **Aperçu du graphe** : boucles dépliées jusqu'au maximum, sans rien exécuter.
 3. **Lancer et suivre** : graphe réel en direct ; la page signale les nœuds prévus non atteints et les nœuds non prévus ; comparez retours, tokens et durées entre architectures.
+
+## Le groupe d'outils `jeu` (TD6)
+
+Avec le profil `jeu`, `outils jeu` donne à un agent les huit outils du jeu (`etat_clinique`, `lister_patients`, `fiche_espece`, `consulter_pharmacie`, `examiner_patient`, `soigner`, `commander`, `fin_de_journee`) ; on peut aussi les nommer un par un pour restreindre un rôle. Exemples : `scenarios/jeu-gribouille-seul.md`, `scenarios/jeu-equipe.md`. Une exécution = une journée ; la partie complète se lance par `POST /api/agent/jeu/partie`.
