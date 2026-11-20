@@ -34,3 +34,11 @@ Comportement d'un vrai LLM sur C1–C3, variance des traces, `traces/` des neuf 
 
 `temperature`, `top-p` et `top-k` sont ignorés par ce module : inutile de les régler (le paramètre `temperature` de `/api/mesures` n'aura pas d'effet avec Claude).
 **Non vérifié** : aucun appel réel à l'API depuis l'environnement de rédaction.
+
+## Tester avec Gemini (API Google)
+
+1. Créez une clé sur Google AI Studio (aistudio.google.com) ; vérifiez sur place les quotas et la tarification applicables à votre compte.
+2. Définissez `GEMINI_API_KEY` dans l'environnement de lancement (Spring Tools : `Run Configurations… > Environment`), jamais dans Git.
+3. Lancez avec le profil `gemini` (`mvn spring-boot:run -Dspring-boot.run.profiles=gemini`). Starter `spring-ai-starter-model-google-genai`, modèle par défaut `gemini-2.5-flash` ; `-Dspring.ai.google.genai.chat.model=gemini-2.5-pro` pour plus de qualité.
+
+**Non vérifié** : aucun appel réel à l'API depuis l'environnement de rédaction.
