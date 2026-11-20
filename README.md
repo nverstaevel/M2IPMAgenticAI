@@ -30,7 +30,7 @@ Le dépôt n'est pas un projet unique : chaque dossier `tdN-…` est un projet M
 
 Dans tous les cas, pas de `.project` sur le dossier racine : ouvrir le dossier d'un TD, pas la racine, avec l'import « General ».
 
-Les projets de la clinique ont des noms distincts (`clinique-td1` à `clinique-td6`) : Eclipse refuse deux projets du même nom dans un espace de travail.
+Les projets ont des noms distincts (`clinique-td1` à `clinique-td6`, `jeu-bestiaire`) : Eclipse refuse deux projets du même nom dans un espace de travail.
 
 ## Scénarios décrits en Markdown (TD5, TD6)
 
