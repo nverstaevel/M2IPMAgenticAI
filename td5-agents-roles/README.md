@@ -48,3 +48,9 @@ Qualité d'un vrai gardien et d'un vrai vétérinaire, appels réels à Wikipéd
 3. Lancez avec le profil `gemini` (`mvn spring-boot:run -Dspring-boot.run.profiles=gemini`). Starter `spring-ai-starter-model-google-genai`, modèle par défaut `gemini-3.8-flash` ; `-Dspring.ai.google.genai.chat.model=<nom>` pour un autre modèle (liste des modèles disponibles sur aistudio.google.com).
 
 **Non vérifié** : aucun appel réel à l'API depuis l'environnement de rédaction.
+
+## Diagnostic du fournisseur de modèle
+
+`GET /api/diagnostic/modele` (connecté) appelle directement le modèle actif avec un message minimal et un délai de 30 s, puis renvoie
+le statut, la durée et l'exception éventuelle. À essayer en premier quand le chat ne répond pas :
+`curl -u gribouille:gribouille localhost:8080/api/diagnostic/modele`.
