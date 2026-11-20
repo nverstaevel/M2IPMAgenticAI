@@ -65,6 +65,11 @@ public class AgentReactService {
         this(modele, outils, traces, new SuiviExecution(), budgetTokens, 3, 12);
     }
 
+    /** Constructeur de test avec suivi partagé (graphe /agents). */
+    public AgentReactService(ChatModel modele, ToolCallback[] outils, TraceStore traces, SuiviExecution suivi, int budgetTokens) {
+        this(modele, outils, traces, suivi, budgetTokens, 3, 12);
+    }
+
     public AgentReactService(ChatModel modele, ToolCallback[] outils, TraceStore traces, int budgetTokens,
                              int maxAppelsParOutil, int maxAppelsTotal) {
         this(modele, outils, traces, new SuiviExecution(), budgetTokens, maxAppelsParOutil, maxAppelsTotal);
