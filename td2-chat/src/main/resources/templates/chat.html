@@ -61,14 +61,24 @@
       const p = ajouter('Dr Gribouille', '');
       const es = new EventSource('/api/chat/stream?conversationId=' + cid + '&message=' + encodeURIComponent(message));
       es.onmessage = ev => { p.textContent += ev.data; };
-      es.onerror = () => es.close();
+      es.onerror = () => { es.close(); if (!p.textContent) { p.textContent = 'Dr Gribouille : (aucune réponse du modèle, voir la console du serveur)'; } };
     } else {
-      const r = await fetch('/api/chat', { method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ conversationId: cid, message }) });
-      if (!r.ok) { ajouter('Erreur', (await r.json()).detail || r.status); return; }
-      const corps = await r.json();
-      ajouter('Dr Gribouille', corps.reponse);
-      afficherPropositions(corps.propositions);
+      const attente = ajouter('Dr Gribouille', '… réfléchit');
+      try {
+        const r = await fetch('/api/chat', { method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ conversationId: cid, message }) });
+        if (!r.ok) {
+          let detail = r.status;
+          try { detail = (await r.json()).detail || r.status; } catch (_) {}
+          attente.textContent = 'Erreur : ' + detail;
+          return;
+        }
+        const corps = await r.json();
+        attente.textContent = 'Dr Gribouille : ' + corps.reponse;
+        afficherPropositions(corps.propositions);
+      } catch (err) {
+        attente.textContent = 'Erreur : ' + err;
+      }
     }
   });
 </script>

@@ -18,6 +18,8 @@ import reactor.core.publisher.Flux;
 @RequestMapping("/api")
 public class ChatController {
 
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(ChatController.class);
+
     public record ChatRequest(@NotBlank(message = "conversationId est obligatoire") String conversationId,
                               @NotBlank(message = "message est obligatoire") String message) {}
 
@@ -40,12 +42,25 @@ public class ChatController {
 
     @PostMapping("/chat")
     public ChatReponse chat(@Valid @RequestBody ChatRequest requete) {
-        String reponse = chat.prompt()
-                .user(requete.message())
-                .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, requete.conversationId()))
-                .toolContext(Map.of("conversationId", requete.conversationId()))
-                .call()
-                .content();
+        String reponse;
+        try {
+            reponse = chat.prompt()
+                    .user(requete.message())
+                    .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, requete.conversationId()))
+                    .toolContext(Map.of("conversationId", requete.conversationId()))
+                    .call()
+                    .content();
+        } catch (RuntimeException e) {
+            // Fournisseur de modèle injoignable, clé refusée, modèle inconnu, surcharge (503)… : on le dit au client.
+            LOG.warn("Échec de l'appel au modèle", e);
+            Throwable racine = e;
+            while (racine.getCause() != null) {
+                racine = racine.getCause();
+            }
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_GATEWAY,
+                    "Le modèle n'a pas répondu : " + e.getClass().getSimpleName() + " — " + racine.getMessage());
+        }
         return new ChatReponse(reponse, propositions.enAttente(requete.conversationId()));
     }
 
