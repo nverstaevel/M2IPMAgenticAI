@@ -79,10 +79,7 @@ public class AgentReactService {
     public ResultatAgent executer(String runId, String demande, int maxEtapes) {
         suivi.demarrer(runId, "ReAct : " + abreger(demande));
         suivi.noeud(runId, "demande", List.of(), Evenement.UTILISATEUR, "Demande", Evenement.OK, demande, null, null, null);
-        ToolCallingChatOptions options = ToolCallingChatOptions.builder()
-                .toolCallbacks(outils)
-                .toolContext(Map.of("conversationId", runId))
-                .build();
+        ToolCallingChatOptions options = optionsAppel(Map.of("conversationId", runId), null);
         Prompt prompt = new Prompt(List.<Message>of(new SystemMessage(PROMPT_SYSTEME), new UserMessage(demande)), options);
         List<Etape> etapes = new ArrayList<>();
         int tokens = 0;
@@ -155,6 +152,27 @@ public class AgentReactService {
             resultatFinal = new ResultatAgent("Erreur : " + e.getMessage(), MotifArret.ERREUR, etapes, tokens);
             return cloturer(runId, enCours == null ? "demande" : enCours, resultatFinal, resultatFinal.reponse());
         }
+    }
+
+    /** Options de l'appel : on part de celles du modèle (OpenAiChatOptions, AnthropicChatOptions…) pour ne pas casser le client du fournisseur. */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private ToolCallingChatOptions optionsAppel(Map<String, Object> contexte, Double temperature) {
+        try {
+            var defaut = modele.getOptions();
+            if (defaut != null) {
+                var b = (org.springframework.ai.chat.prompt.ChatOptions.Builder) defaut.mutate();
+                if (b instanceof ToolCallingChatOptions.Builder tb) {
+                    tb.toolCallbacks(outils).toolContext(contexte);
+                    if (temperature != null) { tb.temperature(temperature); }
+                    return (ToolCallingChatOptions) tb.build();
+                }
+            }
+        } catch (RuntimeException | LinkageError e) {
+            // repli ci-dessous
+        }
+        var constructeur = ToolCallingChatOptions.builder().toolCallbacks(outils).toolContext(contexte);
+        if (temperature != null) { constructeur.temperature(temperature); }
+        return constructeur.build();
     }
 
     /** Nœud final du graphe (réponse ou motif d'arrêt), puis fin du suivi. */
