@@ -43,6 +43,8 @@ public class ChatController {
 
     @PostMapping("/chat")
     public ChatReponse chat(@Valid @RequestBody ChatRequest requete) {
+        LOG.info("Question [conversation {}] : {}", requete.conversationId(), requete.message());
+        long debut = System.nanoTime();
         String reponse;
         try {
             reponse = chat.prompt()
@@ -53,7 +55,7 @@ public class ChatController {
                     .content();
         } catch (RuntimeException e) {
             // Fournisseur de modèle injoignable, clé refusée, modèle inconnu, surcharge (503)… : on le dit au client.
-            LOG.warn("Échec de l'appel au modèle", e);
+            LOG.warn("Échec de l'appel au modèle après {} ms", (System.nanoTime() - debut) / 1_000_000, e);
             Throwable racine = e;
             while (racine.getCause() != null) {
                 racine = racine.getCause();
@@ -62,6 +64,8 @@ public class ChatController {
                     org.springframework.http.HttpStatus.BAD_GATEWAY,
                     "Le modèle n'a pas répondu : " + e.getClass().getSimpleName() + " — " + racine.getMessage());
         }
+        LOG.info("Réponse du modèle en {} ms ({} caractères)", (System.nanoTime() - debut) / 1_000_000,
+                reponse == null ? 0 : reponse.length());
         return new ChatReponse(reponse, propositions.enAttente(requete.conversationId()));
     }
 
