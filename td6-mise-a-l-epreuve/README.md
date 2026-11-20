@@ -34,3 +34,12 @@ Fixtures : `src/test/resources/wikipedia/wikipedia-piege.json`, `src/test/resour
 ## Vérification et limites
 
 CI verte : 90 tests, tous avec le modèle simulé. Ils établissent que les garde-fous **déterministes** fonctionnent. Ils ne mesurent pas : la sensibilité d'un vrai LLM aux injections (A1, A2, A7), les faux refus en usage réel, les 20 + 20 exécutions du scénario C2, ni le coût réel. `FICHE.md` décrit l'application ; `ANALYSE.md` est un modèle à remplir avec de vraies mesures ; `JOURNAL.md` reste à produire par les étudiants.
+
+## Tester avec Claude (API Anthropic)
+
+1. Créez une clé sur la Claude Console (console.anthropic.com) ; l'API est facturée à l'usage, indépendamment de l'abonnement Claude.ai.
+2. Définissez `ANTHROPIC_API_KEY` dans l'environnement de lancement (Spring Tools : `Run Configurations… > Environment`), jamais dans Git.
+3. Lancez avec le profil `claude` (`mvn spring-boot:run -Dspring-boot.run.profiles=claude`). Modèle par défaut : `claude-haiku-5-5` (rapide, économique) ; `-Dspring.ai.openai.chat.model=claude-sonnet-5-5` pour plus de qualité.
+
+Le profil passe par la couche de compatibilité OpenAI d'Anthropic, prévue pour tester et comparer, pas pour la production. Ne pas fixer `temperature` (< 1 refusé par les modèles récents) et ne pas combiner avec le profil `local`. Pour `/api/mesures`, laissez `temperature` à `null` : un réglage inférieur à 1 est refusé par l'API.
+**Non vérifié** : aucun appel réel à l'API depuis l'environnement de rédaction.

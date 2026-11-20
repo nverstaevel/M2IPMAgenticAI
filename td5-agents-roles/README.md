@@ -31,3 +31,12 @@ Les verdicts des cinq cas sont donc reproductibles en CI, **mais ce gardien est 
 ## Non vérifié
 
 Qualité d'un vrai gardien et d'un vrai vétérinaire, appels réels à Wikipédia depuis le duo, mesures sur 15 exécutions, comparaison chiffrée workflow / superviseur, `JOURNAL.md`. Les PDF sont produits dans `target/dossiers-test` pendant les tests (non versionnés).
+
+## Tester avec Claude (API Anthropic)
+
+1. Créez une clé sur la Claude Console (console.anthropic.com) ; l'API est facturée à l'usage, indépendamment de l'abonnement Claude.ai.
+2. Définissez `ANTHROPIC_API_KEY` dans l'environnement de lancement (Spring Tools : `Run Configurations… > Environment`), jamais dans Git.
+3. Lancez avec le profil `claude` (`mvn spring-boot:run -Dspring-boot.run.profiles=claude`). Modèle par défaut : `claude-haiku-5-5` (rapide, économique) ; `-Dspring.ai.openai.chat.model=claude-sonnet-5-5` pour plus de qualité.
+
+Le profil passe par la couche de compatibilité OpenAI d'Anthropic, prévue pour tester et comparer, pas pour la production. Ne pas fixer `temperature` (< 1 refusé par les modèles récents) et ne pas combiner avec le profil `local`.
+**Non vérifié** : aucun appel réel à l'API depuis l'environnement de rédaction.
