@@ -27,4 +27,28 @@ class SuiviRolesTest {
         assertThat(evts.stream().filter(e -> "humain".equals(e.id())).findFirst().orElseThrow().statut()).isEqualTo(Evenement.ATTENTE);
         assertThat(run.tours()).isNotEmpty();
     }
+
+    /** Un travailleur dont l'appel échoue deux fois (appel d'outil rejeté par le fournisseur) ne doit pas faire échouer tout le plan. */
+    @Test
+    void leSuperviseurPoursuitAvecUnResultatPartielSiUnTravailleurEchoue() {
+        var suivi = new SuiviExecution();
+        var plan = "{\"sousTaches\":[{\"travailleur\":\"DOSSIER\",\"consigne\":\"dossier\"},{\"travailleur\":\"PHARMACIE\",\"consigne\":\"stock\"}]}";
+        var superviseur = ChatClient.create(new ModeleTexte(plan, "Synthèse partielle."));
+        var casse = new org.springframework.ai.chat.model.ChatModel() {
+            @Override public org.springframework.ai.chat.model.ChatResponse call(org.springframework.ai.chat.prompt.Prompt p) {
+                throw new IllegalStateException("400: tool call validation failed");
+            }
+        };
+        var travailleurs = new java.util.EnumMap<Plan.Travailleur, ChatClient>(Plan.Travailleur.class);
+        travailleurs.put(Plan.Travailleur.DOSSIER, ChatClient.create(casse));
+        travailleurs.put(Plan.Travailleur.PHARMACIE, ChatClient.create(new ModeleTexte("Stock : 12.")));
+        var agent = new SuperviseurAgent(superviseur, travailleurs, new fr.m2ipm.clinique.agent.TraceStore(
+                java.nio.file.Path.of(System.getProperty("java.io.tmpdir"), "traces-test-sup")), suivi);
+        var r = agent.executer("run-sup-1", "demande");
+        assertThat(r.synthese()).isEqualTo("Synthèse partielle.");
+        var evts = suivi.evenements("run-sup-1").orElseThrow();
+        assertThat(evts.stream().filter(e -> "t1".equals(e.id())).reduce((a, b) -> b).orElseThrow().statut()).isEqualTo(Evenement.ERREUR);
+        assertThat(evts.stream().filter(e -> "t2".equals(e.id())).reduce((a, b) -> b).orElseThrow().statut()).isEqualTo(Evenement.OK);
+        assertThat(evts.stream().filter(e -> "fin".equals(e.id())).findFirst().orElseThrow().statut()).isEqualTo(Evenement.OK);
+    }
 }

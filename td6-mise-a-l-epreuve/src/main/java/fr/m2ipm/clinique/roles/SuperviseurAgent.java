@@ -90,10 +90,26 @@ public class SuperviseurAgent {
                 suivi.noeud(runId, id, List.of("plan"), Evenement.TRAVAILLEUR, t.travailleur() + "Worker", Evenement.EN_COURS,
                         t.consigne(), null, null, null);
                 long debut = System.nanoTime();
-                String reponse;
-                try (var p = SuiviOutils.ouvrir(suivi, runId, id)) {
-                    reponse = travailleurs.get(t.travailleur()).prompt().user(t.consigne())
-                            .toolContext(Map.of("conversationId", runId, "roles", "ROLE_PERSONNEL")).call().content();
+                String reponse = null;
+                RuntimeException echec = null;
+                for (int tentative = 1; tentative <= 2 && reponse == null; tentative++) {
+                    try (var p = SuiviOutils.ouvrir(suivi, runId, id)) {
+                        reponse = travailleurs.get(t.travailleur()).prompt().user(t.consigne())
+                                .toolContext(Map.of("conversationId", runId, "roles", "ROLE_PERSONNEL")).call().content();
+                    } catch (RuntimeException e) {
+                        // Appel d'outil mal formé par le modèle (rejeté par le fournisseur) : une seconde tentative suffit souvent.
+                        echec = e;
+                        suivi.maj(runId, id, Evenement.EN_COURS, "Tentative " + tentative + " échouée : " + e.getMessage()
+                                + (tentative < 2 ? "\nNouvelle tentative…" : ""), null, null, null);
+                    }
+                }
+                if (reponse == null) {
+                    // Le travailleur a échoué deux fois : on poursuit avec un résultat partiel plutôt que d'abandonner tout le plan.
+                    reponse = "(échec du travailleur " + t.travailleur() + " : " + echec.getMessage() + ")";
+                    suivi.maj(runId, id, Evenement.ERREUR, null, reponse, (System.nanoTime() - debut) / 1_000_000, null);
+                    reponses.append(t.travailleur()).append(" : ").append(reponse).append('\n');
+                    termines.add(id);
+                    continue;
                 }
                 String r = reponse == null ? "" : reponse;
                 long ms = (System.nanoTime() - debut) / 1_000_000;
