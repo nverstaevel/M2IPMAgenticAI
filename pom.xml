@@ -17,6 +17,7 @@
     <module>td3-outils-externes</module>
     <module>td4-agent-react</module>
     <module>td5-agents-roles</module>
-    <module>td6-mise-a-l-epreuve</module>
+    <module>jeu-bestiaire</module>
+    <module>td6-mcp-jeu</module>
   </modules>
 </project>

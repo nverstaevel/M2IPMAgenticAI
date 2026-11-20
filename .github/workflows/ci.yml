@@ -6,11 +6,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        td: [td1-clinique, td2-chat, td3-outils-externes, td4-agent-react, td5-agents-roles, td6-mise-a-l-epreuve]
+        td: [td1-clinique, td2-chat, td3-outils-externes, td4-agent-react, td5-agents-roles, jeu-bestiaire, td6-mcp-jeu]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: '21', cache: maven }
+      - name: Démarrer le jeu (serveur MCP) pour la liaison du TD6
+        if: matrix.td == 'td6-mcp-jeu'
+        run: |
+          mvn -B -f jeu-bestiaire/pom.xml -DskipTests package
+          nohup java -jar jeu-bestiaire/target/jeu-bestiaire-1.0.0.jar > jeu.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:8090/api/partie > /dev/null && break; sleep 1; done
+          curl -sf http://localhost:8090/api/partie > /dev/null || { cat jeu.log; exit 1; }
       - name: Build et tests
         run: |
-          if [ -f "${{ matrix.td }}/pom.xml" ]; then mvn -B -f "${{ matrix.td }}/pom.xml" verify; else echo "dossier absent"; fi
+          if [ -f "${{ matrix.td }}/pom.xml" ]; then mvn -B -f "${{ matrix.td }}/pom.xml" verify ${{ matrix.td == 'td6-mcp-jeu' && '-Djeu.reel=true' || '' }}; else echo "dossier absent"; fi
