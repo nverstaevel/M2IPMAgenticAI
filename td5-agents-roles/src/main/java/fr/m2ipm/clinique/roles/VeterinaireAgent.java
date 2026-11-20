@@ -27,6 +27,11 @@ public class VeterinaireAgent {
             Profil PRESSÉ : tu proposes sans vérifier le premier remède qui te vient, celui qui est indiqué comme piste habituelle.
             """;
 
+    static final String OBSTINE = BASE + """
+            Profil OBSTINÉ : tu es convaincu de la piste habituelle indiquée. Même si le gardien formule des objections,
+            tu maintiens le même traitement, en reformulant seulement la justification.
+            """;
+
     private final ChatClient client;
 
     @Autowired
@@ -42,14 +47,14 @@ public class VeterinaireAgent {
         u.append("Cas ").append(cas.id()).append(" — créature : ").append(cas.creature()).append(" (").append(cas.espece())
                 .append(") ; symptôme : ").append(cas.symptome()).append('\n');
         u.append("Profil : ").append(profil).append('\n');
-        if (profil == ProfilActeur.PRESSE) {
+        if (profil != ProfilActeur.PRUDENT) {
             u.append("Piste habituelle : ").append(cas.traitementPresse()).append('\n');
         }
         if (objections != null && !objections.isEmpty()) {
             u.append("Objections du gardien à prendre en compte : ").append(String.join(" ; ", objections)).append('\n');
         }
         return client.prompt()
-                .system(profil == ProfilActeur.PRESSE ? PRESSE : PRUDENT)
+                .system(switch (profil) { case PRESSE -> PRESSE; case OBSTINE -> OBSTINE; default -> PRUDENT; })
                 .user(u.toString())
                 .call()
                 .entity(Diagnostic.class);

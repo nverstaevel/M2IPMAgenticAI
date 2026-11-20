@@ -40,6 +40,10 @@
   .bandeau { height: 6px; rx: 3; }
   .lien { fill: none; stroke: #8a8f98; stroke-width: 2; marker-end: url(#fleche); transition: opacity .4s; }
   .lien.nouveau { opacity: 0; }
+  .lien.retour { stroke: #b9770e; stroke-dasharray: 7 5; }
+  .etiquette-retour { font-size: 11px; fill: #b9770e; text-anchor: middle; font-style: italic; }
+  .cadre { fill: rgba(120, 130, 150, .07); stroke: #aab; stroke-dasharray: 3 4; rx: 10; }
+  .cadre-titre { font-size: 11px; fill: #667; font-weight: 600; }
   #detail pre { white-space: pre-wrap; word-break: break-word; background: #f4f4f4; padding: .4rem; border-radius: 4px; max-height: 14rem; overflow: auto; font-size: .82rem; margin: .15rem 0 .5rem; }
   #detail dt { font-weight: 600; font-size: .82rem; color: #444; } #detail dd { margin: 0 0 .4rem; }
   #journal { font-size: .8rem; max-height: 9rem; overflow: auto; color: #333; margin: .3rem 0 0; padding-left: 1.8rem; }
@@ -83,7 +87,7 @@
             <path d="M 0 0 L 10 5 L 0 10 z" fill="#8a8f98"/>
           </marker>
         </defs>
-        <g id="monde"><g id="liens"></g><g id="noeuds"></g></g>
+        <g id="monde"><g id="cadres"></g><g id="liens"></g><g id="noeuds"></g></g>
       </svg>
     </div>
     <div class="legende" id="legende"></div>
@@ -125,6 +129,7 @@
         { l: 'Source externe · Wikipédia + tarif', t: 'Que dit Wikipédia sur le phénix, et combien coûte une consultation pour un phénix ?' },
         { l: 'Cas limite · espèce inconnue', t: 'Quel est le tarif d\'une consultation pour un canard ?' },
         { l: 'Cas limite · demande impossible', t: 'Réserve-moi un vol pour Mars.' },
+        { l: 'Boucle détectée · même appel répété', t: 'Consulte le tarif d\'une consultation pour un dragon, puis refais exactement le même appel pour vérifier qu\'il ne change pas, et recommence encore une fois.' },
         { l: 'Plafond d\'étapes (réglé à 3)', t: 'Pour chaque espèce de la clinique, donne le tarif de consultation et le soigneur compétent.', p: { maxEtapes: 3 } }
       ],
       parametres: [{ id: 'maxEtapes', libelle: 'Étapes maximum', type: 'number', min: 1, max: 20, valeur: 8 }],
@@ -136,13 +141,14 @@
         { l: 'Cas 1 · loup-garou, PRESSÉ → rejet attendu, puis correction', p: { casId: 1, profil: 'PRESSE' } },
         { l: 'Cas 1 · loup-garou, PRUDENT → approbation attendue', p: { casId: 1, profil: 'PRUDENT' } },
         { l: 'Cas 2 · vampire, PRESSÉ → rejet attendu (soleil)', p: { casId: 2, profil: 'PRESSE' } },
+        { l: 'Cas 1 · loup-garou, OBSTINÉ → 3 tours rejetés, non convergent, renvoi à un humain', p: { casId: 1, profil: 'OBSTINE' } },
         { l: 'Cas 3 · dragon, PRESSÉ → approbation attendue', p: { casId: 3, profil: 'PRESSE' } },
         { l: 'Cas 4 · phénix, PRUDENT → approbation attendue', p: { casId: 4, profil: 'PRUDENT' } },
         { l: 'Cas 5 · yéti, PRESSÉ → doute attendu, renvoi à un humain', p: { casId: 5, profil: 'PRESSE' } }
       ],
       parametres: [
         { id: 'casId', libelle: 'Cas du bestiaire', type: 'select', valeur: '1', options: [ ['1', '1 · Lunatique (loup-garou)'], ['2', '2 · Monsieur Crépuscule (vampire)'], ['3', '3 · Flammèche (dragon)'], ['4', '4 · Rebelote (phénix)'], ['5', '5 · Grognon (yéti)'] ] },
-        { id: 'profil', libelle: 'Profil du vétérinaire', type: 'select', valeur: 'PRESSE', options: [ ['PRUDENT', 'PRUDENT (vérifie)'], ['PRESSE', 'PRESSÉ (provoque des erreurs)'] ] }
+        { id: 'profil', libelle: 'Profil du vétérinaire', type: 'select', valeur: 'PRESSE', options: [ ['PRUDENT', 'PRUDENT (vérifie)'], ['PRESSE', 'PRESSÉ (provoque des erreurs)'], ['OBSTINE', 'OBSTINÉ (maintient son traitement malgré les objections)'] ] }
       ],
       requete: function (demande, p) { return { url: '/api/agent/lancer-duo', corps: { casId: Number(p.casId) || 1, profil: p.profil } }; }
     },
@@ -185,9 +191,9 @@
   var etat = { runId: null, titre: '', statut: null, noeuds: new Map(), source: null, rejeu: 0, selection: null, premier: 0, dernier: 0 };
   var els = {};
   ['mode', 'exemple', 'demande', 'parametres', 'lancer', 'erreur-form', 'runs', 'ouvrir', 'rejouer', 'actualiser', 'statut', 'titre',
-    'stats', 'suivre', 'ensemble', 'graphe', 'svg', 'monde', 'liens', 'noeuds', 'legende', 'aucun-detail', 'champs', 'journal']
+    'stats', 'suivre', 'ensemble', 'graphe', 'svg', 'monde', 'cadres', 'liens', 'noeuds', 'legende', 'aucun-detail', 'champs', 'journal']
     .forEach(function (id) { els[id] = document.getElementById(id); });
-  var domNoeuds = new Map(), domLiens = new Map();
+  var domNoeuds = new Map(), domLiens = new Map(), domCadres = new Map(), domEtiquettes = new Map();
   var cam = { x: 40, y: 0, k: 1 };
 
   // ---------- formulaire ----------
@@ -271,6 +277,8 @@
     etat.runId = runId; etat.titre = ''; etat.statut = null; etat.noeuds = new Map(); etat.selection = null; etat.premier = 0; etat.dernier = 0;
     domNoeuds.forEach(function (g) { g.remove(); }); domNoeuds.clear();
     domLiens.forEach(function (p) { p.remove(); }); domLiens.clear();
+    domCadres.forEach(function (c) { c.rect.remove(); c.txt.remove(); }); domCadres.clear();
+    domEtiquettes.forEach(function (t) { t.remove(); }); domEtiquettes.clear();
     els.journal.innerHTML = '';
     afficherDetail();
     dessiner();
@@ -324,6 +332,36 @@
     });
   }
 
+  // Une boucle est dépliée dans le temps : on regroupe les nœuds d'un même tour (duo) ou d'une même itération (ReAct)
+  // dans un cadre, et on marque d'une flèche « retour » le lien qui relance un nouveau tour.
+  function groupe(n) {
+    var m = /^[vgr](\d+)$/.exec(n.id);
+    if (m) { return { cle: 'T' + m[1], type: 'Tour', num: Number(m[1]), retour: 'objections' }; }
+    m = /^e(\d+)(-outil)?$/.exec(n.id);
+    if (m) { return { cle: 'I' + m[1], type: 'Itération', num: Number(m[1]), retour: 'résultat' }; }
+    return null;
+  }
+
+  function dessinerCadres() {
+    var boites = new Map();
+    etat.noeuds.forEach(function (n) {
+      var g = groupe(n); if (!g) { return; }
+      var b = boites.get(g.cle) || { g: g, x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+      b.x0 = Math.min(b.x0, n.x); b.y0 = Math.min(b.y0, n.y); b.x1 = Math.max(b.x1, n.x + LARG); b.y1 = Math.max(b.y1, n.y + HAUT);
+      boites.set(g.cle, b);
+    });
+    boites.forEach(function (b, cle) {
+      var c = domCadres.get(cle);
+      if (!c) { c = { rect: elt('rect', { class: 'cadre' }, els.cadres), txt: elt('text', { class: 'cadre-titre' }, els.cadres) }; domCadres.set(cle, c); }
+      var pad = 12;
+      c.rect.setAttribute('x', b.x0 - pad); c.rect.setAttribute('y', b.y0 - pad - 16);
+      c.rect.setAttribute('width', b.x1 - b.x0 + 2 * pad); c.rect.setAttribute('height', b.y1 - b.y0 + 2 * pad + 16);
+      c.txt.setAttribute('x', b.x0 - pad + 8); c.txt.setAttribute('y', b.y0 - pad - 2);
+      c.txt.textContent = b.g.type + ' ' + b.g.num;
+    });
+    domCadres.forEach(function (c, cle) { if (!boites.has(cle)) { c.rect.remove(); c.txt.remove(); domCadres.delete(cle); } });
+  }
+
   function coupe(s, max) { s = s == null ? '' : String(s); return s.length > max ? s.slice(0, max - 1) + '…' : s; }
   function elt(nom, attrs, parent) {
     var e = document.createElementNS(NS, nom);
@@ -363,8 +401,10 @@
       g.querySelector('.sous').textContent = sousTitre(n);
       g.querySelector('title').textContent = n.libelle;
     });
+    dessinerCadres();
     // liens
     var vus = new Set();
+    var vuesEtiq = new Set();
     etat.noeuds.forEach(function (n) {
       n.parents.forEach(function (pid) {
         var p = etat.noeuds.get(pid); if (!p) { return; }
@@ -376,9 +416,18 @@
         }
         var x1 = p.x + LARG, y1 = p.y + HAUT / 2, x2 = n.x, y2 = n.y + HAUT / 2, dx = Math.max(30, (x2 - x1) / 2);
         l.setAttribute('d', 'M' + x1 + ',' + y1 + ' C' + (x1 + dx) + ',' + y1 + ' ' + (x2 - dx) + ',' + y2 + ' ' + x2 + ',' + y2);
+        var gp = groupe(p), gn = groupe(n), retour = !!(gp && gn && gp.type === gn.type && gn.num > gp.num);
+        l.setAttribute('class', 'lien' + (retour ? ' retour' : '') + (l.classList.contains('nouveau') ? ' nouveau' : ''));
+        if (retour) {
+          var t = domEtiquettes.get(cle);
+          if (!t) { t = elt('text', { class: 'etiquette-retour' }, els.liens); domEtiquettes.set(cle, t); }
+          t.setAttribute('x', (x1 + x2) / 2); t.setAttribute('y', Math.min(y1, y2) - 8);
+          t.textContent = '↻ ' + gn.retour; vuesEtiq.add(cle);
+        }
       });
     });
     domLiens.forEach(function (p, cle) { if (!vus.has(cle)) { p.remove(); domLiens.delete(cle); } });
+    domEtiquettes.forEach(function (t, cle) { if (!vuesEtiq.has(cle)) { t.remove(); domEtiquettes.delete(cle); } });
     barreEtat();
     if (els.suivre.checked) { suivreDernier(); } else { appliquerCamera(); }
   }
