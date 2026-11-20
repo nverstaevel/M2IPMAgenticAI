@@ -89,7 +89,7 @@ le statut, la durée et l'exception éventuelle. À essayer en premier quand le 
 
 1. Créez une clé sur console.groq.com ; vérifiez sur place les quotas et la tarification de votre compte.
 2. Définissez `GROQ_API_KEY` dans l'environnement de lancement (Spring Tools : `Run Configurations… > Environment`), jamais dans Git.
-3. Lancez avec le profil `groq` (`mvn spring-boot:run -Dspring-boot.run.profiles=groq`). Modèle par défaut `llama-3.3-70b-versatile` ;
+3. Lancez avec le profil `groq` (`mvn spring-boot:run -Dspring-boot.run.profiles=groq`). Modèle par défaut `openai/gpt-oss-120b` ;
    `-Dspring.ai.openai.chat.model=<nom>` pour un autre (liste : `GET https://api.groq.com/openai/v1/models` avec la clé). Il doit gérer l'appel d'outils.
 
 **Non vérifié** : aucun appel réel à l'API depuis l'environnement de rédaction.
