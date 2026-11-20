@@ -33,7 +33,7 @@ Les six projets ont des noms distincts (`clinique-td1` à `clinique-td6`) : Ecli
 
 ## Scénarios décrits en Markdown (TD5, TD6)
 
-Chaque architecture se décrit dans un fichier `.md` (en-tête YAML + texte) lu et exécuté par la page `/agents` : voir `SCENARIOS.md` et `scenarios/_modele.md` dans `td5-agents-roles` et `td6-mise-a-l-epreuve`.
+Chaque architecture se décrit dans un fichier `.md` (titre, agents, graphe en flèches `a -> b`, boucles, outils autorisés) lu et exécuté par la page `/agents` : voir `SCENARIOS.md` et `scenarios/_modele.md` dans `td5-agents-roles` et `td6-mise-a-l-epreuve`.
 
 ## Vérification
 

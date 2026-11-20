@@ -243,7 +243,7 @@
       var vide = document.createElement('option'); vide.value = ''; vide.textContent = '(choisir un scénario)'; els.exemple.appendChild(vide);
       liste.forEach(function (sc) {
         var o = document.createElement('option'); o.value = sc.id;
-        o.textContent = (sc.valide ? '' : '⚠ ') + sc.titre + ' [' + sc.architecture + ']'; els.exemple.appendChild(o);
+        o.textContent = (sc.valide ? '' : '⚠ ') + sc.titre + ' [' + sc.forme + ']'; els.exemple.appendChild(o);
       });
     }).catch(function () { document.getElementById('scenario-info').textContent = 'Scénarios indisponibles.'; });
   }
@@ -267,7 +267,7 @@
       els.parametres.appendChild(l); els.parametres.appendChild(champ);
     });
     fetch('/api/agent/scenarios/' + encodeURIComponent(scen.courant.id)).then(function (r) { return r.json(); }).then(function (d) {
-      scen.prevus = d.resume.architecture === 'react' ? [] : d.apercu.map(function (e) { return e.id; });
+      scen.prevus = d.apercu.map(function (e) { return e.id; });
       scen.titre = d.resume.titre;
       info.textContent = d.description || '';
       (d.resume.erreurs || []).forEach(function (m) {

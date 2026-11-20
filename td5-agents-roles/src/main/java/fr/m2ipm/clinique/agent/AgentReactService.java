@@ -77,19 +77,39 @@ public class AgentReactService {
     }
 
     public ResultatAgent executer(String runId, String demande, int maxEtapes) {
-        suivi.demarrer(runId, "ReAct : " + abreger(demande));
-        suivi.noeud(runId, "demande", List.of(), Evenement.UTILISATEUR, "Demande", Evenement.OK, demande, null, null, null);
-        ToolCallingChatOptions options = optionsAppel(Map.of("conversationId", runId), null);
+        return boucle(runId, null, null, demande, maxEtapes, null);
+    }
+
+    /**
+     * La même boucle, exécutée comme un nœud d'un scénario : ses étapes sont des nœuds enfants de {@code parent} (« parent.e1 »,
+     * « parent.e1-outil »…), le suivi n'est ni démarré ni clos ici (c'est l'orchestrateur du scénario qui s'en charge), et les
+     * outils sont ceux que le scénario autorise (null = les outils par défaut de l'agent).
+     */
+    public ResultatAgent executerSous(String runId, String parent, String demande, int maxEtapes, ToolCallback[] outilsAutorises) {
+        return boucle(runId, parent, parent + ".", demande, maxEtapes, outilsAutorises);
+    }
+
+    private ResultatAgent boucle(String runId, String parent, String prefixe, String demande, int maxEtapes,
+                                 ToolCallback[] outilsAutorises) {
+        boolean sous = parent != null;
+        if (!sous) {
+            suivi.demarrer(runId, "ReAct : " + abreger(demande));
+            suivi.noeud(runId, "demande", List.of(), Evenement.UTILISATEUR, "Demande", Evenement.OK, demande, null, null, null);
+        }
+        String racine = sous ? parent : "demande";
+        String pre = sous ? prefixe : "";
+        ToolCallingChatOptions options = optionsAppel(Map.of("conversationId", runId), null,
+                outilsAutorises == null ? outils : outilsAutorises);
         Prompt prompt = new Prompt(List.<Message>of(new SystemMessage(PROMPT_SYSTEME), new UserMessage(demande)), options);
         List<Etape> etapes = new ArrayList<>();
         int tokens = 0;
         String appelPrecedent = null;
-        String precedent = "demande";
+        String precedent = racine;
         String enCours = null;
         ResultatAgent resultatFinal;
         try {
             for (int numero = 1; ; numero++) {
-                String idModele = "e" + numero;
+                String idModele = pre + "e" + numero;
                 enCours = idModele;
                 suivi.noeud(runId, idModele, List.of(precedent), Evenement.MODELE, "Étape " + numero + " · modèle",
                         Evenement.EN_COURS, null, null, null, null);
@@ -107,7 +127,7 @@ public class AgentReactService {
                 if (!reponse.hasToolCalls()) {
                     enregistrer(runId, etapes, new Etape(numero, texte, "", "", "", ms(debut), tokensEtape));
                     resultatFinal = new ResultatAgent(texte, MotifArret.REPONSE_FINALE, etapes, tokens);
-                    return cloturer(runId, idModele, resultatFinal, texte);
+                    return cloturer(runId, sous, idModele, resultatFinal, texte);
                 }
 
                 var appels = sortie.getToolCalls();
@@ -125,7 +145,7 @@ public class AgentReactService {
                     suivi.maj(runId, idOutil, Evenement.ERREUR, null, msg, null, null);
                     resultatFinal = new ResultatAgent("Arrêt : l'agent répète le même appel (" + noms + ").",
                             MotifArret.BOUCLE_DETECTEE, etapes, tokens);
-                    return cloturer(runId, idOutil, resultatFinal, resultatFinal.reponse());
+                    return cloturer(runId, sous, idOutil, resultatFinal, resultatFinal.reponse());
                 }
                 appelPrecedent = signature;
 
@@ -139,12 +159,12 @@ public class AgentReactService {
                 if (tokens >= budgetTokens) {
                     resultatFinal = new ResultatAgent("Arrêt : budget de " + budgetTokens + " tokens atteint.",
                             MotifArret.BUDGET_TOKENS, etapes, tokens);
-                    return cloturer(runId, idOutil, resultatFinal, resultatFinal.reponse());
+                    return cloturer(runId, sous, idOutil, resultatFinal, resultatFinal.reponse());
                 }
                 if (numero >= maxEtapes) {
                     resultatFinal = new ResultatAgent("Arrêt : plafond de " + maxEtapes + " étapes atteint.",
                             MotifArret.PLAFOND_ETAPES, etapes, tokens);
-                    return cloturer(runId, idOutil, resultatFinal, resultatFinal.reponse());
+                    return cloturer(runId, sous, idOutil, resultatFinal, resultatFinal.reponse());
                 }
                 prompt = new Prompt(execution.conversationHistory(), options);
             }
@@ -153,13 +173,13 @@ public class AgentReactService {
                 suivi.maj(runId, enCours, Evenement.ERREUR, null, String.valueOf(e.getMessage()), null, null);
             }
             resultatFinal = new ResultatAgent("Erreur : " + e.getMessage(), MotifArret.ERREUR, etapes, tokens);
-            return cloturer(runId, enCours == null ? "demande" : enCours, resultatFinal, resultatFinal.reponse());
+            return cloturer(runId, sous, enCours == null ? racine : enCours, resultatFinal, resultatFinal.reponse());
         }
     }
 
     /** Options de l'appel : on part de celles du modèle (OpenAiChatOptions, AnthropicChatOptions…) pour ne pas casser le client du fournisseur. */
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private ToolCallingChatOptions optionsAppel(Map<String, Object> contexte, Double temperature) {
+    private ToolCallingChatOptions optionsAppel(Map<String, Object> contexte, Double temperature, ToolCallback[] outils) {
         try {
             var defaut = modele.getOptions();
             if (defaut != null) {
@@ -179,7 +199,8 @@ public class AgentReactService {
     }
 
     /** Nœud final du graphe (réponse ou motif d'arrêt), puis fin du suivi. */
-    private ResultatAgent cloturer(String runId, String parent, ResultatAgent r, String message) {
+    private ResultatAgent cloturer(String runId, boolean sous, String parent, ResultatAgent r, String message) {
+        if (sous) { return r; }
         String libelle = r.motif() == MotifArret.REPONSE_FINALE ? "Réponse finale" : "Arrêt : " + r.motif();
         suivi.noeud(runId, "fin", List.of(parent), Evenement.FIN, libelle,
                 r.motif() == MotifArret.REPONSE_FINALE ? Evenement.OK : Evenement.ERREUR, message, null, null, r.tokens());

@@ -78,6 +78,15 @@ public final class SuiviOutils {
         return r;
     }
 
+    /** Les mêmes outils sans le suivi : pour un agent qui trace lui-même ses appels d'outils (la boucle ReAct écrite à la main). */
+    public static ToolCallback[] sansSuivi(ToolCallback... outils) {
+        ToolCallback[] r = new ToolCallback[outils.length];
+        for (int i = 0; i < outils.length; i++) {
+            r[i] = outils[i] instanceof OutilSuivi o ? o.delegue : outils[i];
+        }
+        return r;
+    }
+
     private static final class OutilSuivi implements ToolCallback {
 
         private final ToolCallback delegue;

@@ -3,6 +3,7 @@ package fr.m2ipm.clinique.roles;
 import fr.m2ipm.clinique.ai.OutilsClinique;
 import java.util.List;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -37,11 +38,13 @@ public class VeterinaireAgent {
     private final ChatClient client;
     /** Client SANS outils qui convertit l'analyse libre en Diagnostic (mode « deux temps », voir agents.sortie-en-deux-temps). */
     private final ChatClient structurant;
+    /** Pour les scénarios : un client construit à la demande avec les seuls outils que le .md autorise (null dans les tests). */
+    private final ChatClient.Builder base;
 
     @Autowired
     public VeterinaireAgent(ChatClient.Builder builder, OutilsClinique clinique, OutilsPharmacie pharmacie,
                             @org.springframework.beans.factory.annotation.Value("${agents.sortie-en-deux-temps:false}") boolean deuxTemps) {
-        this(construire(builder, clinique, pharmacie), deuxTemps ? builder.clone().defaultAdvisors(fr.m2ipm.clinique.agent.ComptageJetons.advisor()).build() : null);
+        this(construire(builder, clinique, pharmacie), deuxTemps ? builder.clone().defaultAdvisors(fr.m2ipm.clinique.agent.ComptageJetons.advisor()).build() : null, builder);
     }
 
     private static ChatClient construire(ChatClient.Builder builder, OutilsClinique clinique, OutilsPharmacie pharmacie) {
@@ -52,9 +55,23 @@ public class VeterinaireAgent {
 
     public VeterinaireAgent(ChatClient client) { this(client, null); }
 
-    public VeterinaireAgent(ChatClient client, ChatClient structurant) { this.client = client; this.structurant = structurant; }
+    public VeterinaireAgent(ChatClient client, ChatClient structurant) { this(client, structurant, null); }
+
+    private VeterinaireAgent(ChatClient client, ChatClient structurant, ChatClient.Builder base) {
+        this.client = client;
+        this.structurant = structurant;
+        this.base = base;
+    }
 
     public Diagnostic proposer(CasBestiaire cas, ProfilActeur profil, List<String> objections) {
+        return proposer(cas, profil, objections, null);
+    }
+
+    /** @param outils les seuls outils autorisés (scénario .md) ; null = les outils par défaut du vétérinaire (dossier et pharmacie). */
+    public Diagnostic proposer(CasBestiaire cas, ProfilActeur profil, List<String> objections, List<ToolCallback> outils) {
+        ChatClient client = outils == null || base == null ? this.client
+                : base.clone().defaultToolCallbacks(outils.toArray(new ToolCallback[0]))
+                        .defaultAdvisors(fr.m2ipm.clinique.agent.ComptageJetons.advisor()).build();
         StringBuilder u = new StringBuilder();
         u.append("Cas ").append(cas.id()).append(" — créature : ").append(cas.creature()).append(" (").append(cas.espece())
                 .append(") ; symptôme : ").append(cas.symptome()).append('\n');

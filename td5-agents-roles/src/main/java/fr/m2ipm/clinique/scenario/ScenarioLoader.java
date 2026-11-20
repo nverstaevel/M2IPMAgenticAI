@@ -4,10 +4,14 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,12 +19,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Component;
-import org.yaml.snakeyaml.Yaml;
 
 /**
  * Lit les scénarios : les fichiers .md du dossier {@code scenarios.dir} (par défaut ./scenarios, relu à chaque appel :
  * on modifie un fichier, on actualise la page) puis ceux fournis dans les ressources (classpath:scenarios/).
- * Un fichier du dossier remplace celui des ressources qui a le même id. Les fichiers dont le nom commence par « _ » sont ignorés.
+ * Un fichier du dossier remplace celui des ressources qui a le même id (le nom du fichier, sans « .md »). Les fichiers dont le nom commence par « _ » sont ignorés.
  */
 @Component
 public class ScenarioLoader {
@@ -70,83 +73,175 @@ public class ScenarioLoader {
         parId.put(d.id(), d);
     }
 
-    /** Analyse un fichier : en-tête YAML entre deux lignes « --- », puis le texte Markdown. Ne lève jamais : les problèmes deviennent des erreurs du scénario. */
-    @SuppressWarnings("unchecked")
+    private static final Pattern CHAMP = Pattern.compile("^([A-Za-z][A-Za-z0-9_]*)\\s*(?:\\(([^)]*)\\))?\\s*:\\s*(.*)$");
+    private static final Pattern MAX = Pattern.compile("\\(\\s*max\\s+(\\d+)\\s*\\)", Pattern.CASE_INSENSITIVE);
+    private static final Pattern FLECHE = Pattern.compile("->|=>");
+
+    /** Normalise un nom : minuscules, sans accent, tirets à la place des espaces et de la ponctuation. */
+    static String norm(String s) {
+        String t = Normalizer.normalize(s == null ? "" : s, Normalizer.Form.NFD).replaceAll("\\p{M}", "").toLowerCase(Locale.ROOT);
+        return t.replaceAll("[^a-z0-9]+", "-").replaceAll("^-+|-+$", "");
+    }
+
+    /**
+     * Analyse un fichier : un titre « # … », des sections « ## Entrées », « ## Agents » et « ## Graphe », et du texte libre
+     * (la description). Ne lève jamais : les problèmes deviennent des erreurs du scénario, avec le numéro de ligne.
+     */
     static ScenarioDef lire(String contenu, String fichier, String nomFichier) {
-        String idDefaut = nomFichier.replaceAll("\\.md$", "").toLowerCase().replaceAll("[^a-z0-9]+", "-");
+        String id = norm(nomFichier.replaceAll("\\.md$", ""));
         List<String> erreurs = new ArrayList<>();
-        String[] lignes = contenu.replace("\r\n", "\n").split("\n", -1);
-        int debut = 0;
-        while (debut < lignes.length && lignes[debut].isBlank()) { debut++; }
-        if (debut >= lignes.length || !lignes[debut].trim().equals("---")) {
-            erreurs.add("Le fichier doit commencer par un en-tête YAML entre deux lignes « --- ».");
-            return new ScenarioDef(idDefaut, idDefaut, "", List.of(), Map.of(), Map.of(), contenu, fichier, erreurs);
-        }
-        int fin = -1;
-        for (int i = debut + 1; i < lignes.length; i++) {
-            if (lignes[i].trim().equals("---")) { fin = i; break; }
-        }
-        if (fin < 0) {
-            erreurs.add("L'en-tête YAML n'est pas fermé par une ligne « --- ».");
-            return new ScenarioDef(idDefaut, idDefaut, "", List.of(), Map.of(), Map.of(), contenu, fichier, erreurs);
-        }
-        String yaml = String.join("\n", List.of(lignes).subList(debut + 1, fin));
-        String corps = String.join("\n", List.of(lignes).subList(fin + 1, lignes.length)).strip();
-        Map<String, Object> m;
-        try {
-            Object o = new Yaml().load(yaml);
-            if (!(o instanceof Map)) {
-                erreurs.add("L'en-tête YAML doit être une suite de « clé: valeur ».");
-                return new ScenarioDef(idDefaut, idDefaut, "", List.of(), Map.of(), Map.of(), corps, fichier, erreurs);
-            }
-            m = (Map<String, Object>) o;
-        } catch (RuntimeException e) {
-            erreurs.add("YAML invalide : " + premiereLigne(e.getMessage()));
-            return new ScenarioDef(idDefaut, idDefaut, "", List.of(), Map.of(), Map.of(), corps, fichier, erreurs);
-        }
-        String id = texte(m.get("id"), idDefaut);
-        if (!id.matches("[a-z0-9][a-z0-9-]{0,63}")) {
-            erreurs.add("id « " + id + " » invalide : minuscules, chiffres et tirets seulement.");
-        }
-        String titre = texte(m.get("titre"), id);
-        String architecture = texte(m.get("architecture"), "");
-        Map<String, Object> agents = m.get("agents") instanceof Map<?, ?> a ? (Map<String, Object>) a : Map.of();
-        Map<String, Object> options = m.get("options") instanceof Map<?, ?> o ? (Map<String, Object>) o : Map.of();
+        String titre = null;
+        StringBuilder description = new StringBuilder();
         List<ChampEntree> entree = new ArrayList<>();
-        if (m.get("entree") instanceof List<?> l) {
-            for (Object c : l) {
-                if (c instanceof Map<?, ?> champ) {
-                    entree.add(champ((Map<String, Object>) champ, erreurs));
-                } else {
-                    erreurs.add("Chaque élément de « entree » doit être un bloc avec au moins un « id ».");
+        List<ScenarioDef.Noeud> agents = new ArrayList<>();
+        List<ScenarioDef.Arc> arcs = new ArrayList<>();
+        String section = "";
+        String[] lignes = contenu.replace("\r\n", "\n").split("\n", -1);
+        for (int i = 0; i < lignes.length; i++) {
+            String brut = lignes[i];
+            String l = brut.strip();
+            int n = i + 1;
+            if (l.startsWith("## ")) {
+                section = switch (norm(l.substring(3))) {
+                    case "entrees" -> "entrees";
+                    case "agents" -> "agents";
+                    case "graphe" -> "graphe";
+                    default -> "";
+                };
+                if (section.isEmpty()) { description.append(brut).append('\n'); }
+                continue;
+            }
+            if (l.startsWith("# ") && titre == null) { titre = l.substring(2).strip(); continue; }
+            if (section.isEmpty()) { description.append(brut).append('\n'); continue; }
+            if (l.isEmpty() || l.startsWith("```") || l.startsWith("//")) { continue; }
+            if (l.startsWith("- ") || l.startsWith("* ")) { l = l.substring(2).strip(); }
+            switch (section) {
+                case "entrees" -> champ(l, n, entree, erreurs);
+                case "agents" -> agent(l, n, agents, erreurs);
+                default -> graphe(l, n, arcs, erreurs);
+            }
+        }
+        if (arcs.isEmpty() && erreurs.isEmpty()) {
+            erreurs.add("Il manque la section « ## Graphe » : une ligne par arc, par exemple « entrée -> agent -> fin ».");
+        }
+        return new ScenarioDef(id, titre == null || titre.isBlank() ? id : titre, entree, agents, arcs,
+                description.toString().strip(), fichier, erreurs);
+    }
+
+    /** « id : valeur » (texte), « id : a | b | c » (choix, le premier est le défaut), « id (Libellé) : … », « a = Libellé | b = … ». */
+    private static void champ(String l, int n, List<ChampEntree> champs, List<String> erreurs) {
+        Matcher m = CHAMP.matcher(l);
+        if (!m.matches()) {
+            erreurs.add("Entrées, ligne " + n + " : attendu « id : valeur » ou « id : a | b | c » (reçu « " + l + " »).");
+            return;
+        }
+        String id = m.group(1);
+        String libelle = m.group(2) == null || m.group(2).isBlank() ? id : m.group(2).strip();
+        String v = m.group(3).strip();
+        if (champs.stream().anyMatch(c -> c.id().equals(id))) {
+            erreurs.add("Entrées, ligne " + n + " : le champ « " + id + " » est déclaré deux fois.");
+            return;
+        }
+        if (v.length() >= 2 && v.startsWith("\"") && v.endsWith("\"")) {
+            champs.add(new ChampEntree(id, libelle, "texte", v.substring(1, v.length() - 1), List.of()));
+        } else if (v.contains("|")) {
+            List<ChampEntree.Option> options = new ArrayList<>();
+            for (String o : v.split("\\|")) {
+                String s = o.strip();
+                int e = s.indexOf('=');
+                options.add(e < 0 ? new ChampEntree.Option(s, s) : new ChampEntree.Option(s.substring(0, e).strip(), s.substring(e + 1).strip()));
+            }
+            champs.add(new ChampEntree(id, libelle, "choix", options.get(0).valeur(), options));
+        } else {
+            champs.add(new ChampEntree(id, libelle, "texte", v, List.of()));
+        }
+    }
+
+    /** « nom », « nom : outils a, b », « nom = bean : outils a, b » : nom dans le graphe, bean Java, outils autorisés. */
+    private static void agent(String l, int n, List<ScenarioDef.Noeud> agents, List<String> erreurs) {
+        String gauche = l;
+        List<String> outils = new ArrayList<>();
+        int c = l.indexOf(':');
+        if (c >= 0) {
+            gauche = l.substring(0, c).strip();
+            String reste = l.substring(c + 1).strip();
+            if (norm(reste).startsWith("outils")) { reste = reste.replaceFirst("(?i)^outils?\\s*:?\\s*", ""); }
+            for (String o : reste.split(",")) {
+                if (!o.isBlank()) { outils.add(o.strip()); }
+            }
+        }
+        String bean;
+        String nom;
+        int e = gauche.indexOf('=');
+        if (e >= 0) {
+            nom = norm(gauche.substring(0, e));
+            bean = gauche.substring(e + 1).strip();
+        } else {
+            nom = norm(gauche);
+            bean = gauche.strip();
+        }
+        if (nom.isEmpty() || bean.isEmpty()) {
+            erreurs.add("Agents, ligne " + n + " : attendu « nom » ou « nom = bean », éventuellement suivi de « : outils a, b » (reçu « " + l + " »).");
+            return;
+        }
+        if (agents.stream().anyMatch(a -> a.nom().equals(nom))) {
+            erreurs.add("Agents, ligne " + n + " : l'agent « " + nom + " » est déclaré deux fois.");
+            return;
+        }
+        agents.add(new ScenarioDef.Noeud(nom, bean, List.copyOf(outils), n));
+    }
+
+    /** « a -> b -> c : REJETE, DOUTE (max 2) » ; « a, b -> c » (jonction) ; « a -> b, c » (plusieurs suites) ; « a => b, c » (délégation). */
+    private static void graphe(String l, int n, List<ScenarioDef.Arc> arcs, List<String> erreurs) {
+        int max = -1;
+        Matcher mm = MAX.matcher(l);
+        if (mm.find()) {
+            max = Integer.parseInt(mm.group(1));
+            l = mm.replaceAll("").strip();
+        }
+        String chaine = l;
+        List<String> etiquettes = new ArrayList<>();
+        int c = l.indexOf(':');
+        if (c >= 0) {
+            chaine = l.substring(0, c);
+            for (String e : l.substring(c + 1).split(",")) {
+                if (!e.isBlank()) { etiquettes.add(e.strip().toUpperCase(Locale.ROOT)); }
+            }
+        }
+        List<List<String>> segments = new ArrayList<>();
+        List<Boolean> delegations = new ArrayList<>();
+        Matcher f = FLECHE.matcher(chaine);
+        int debut = 0;
+        while (f.find()) {
+            segments.add(noms(chaine.substring(debut, f.start())));
+            delegations.add(f.group().equals("=>"));
+            debut = f.end();
+        }
+        segments.add(noms(chaine.substring(debut)));
+        if (segments.size() < 2 || segments.stream().anyMatch(List::isEmpty)) {
+            erreurs.add("Graphe, ligne " + n + " : attendu « a -> b » (reçu « " + l + " »).");
+            return;
+        }
+        for (int i = 0; i < segments.size() - 1; i++) {
+            boolean delegation = delegations.get(i);
+            if (delegation && !etiquettes.isEmpty()) {
+                erreurs.add("Graphe, ligne " + n + " : un arc « => » ne porte pas d'étiquette (le plan de l'agent choisit les cibles).");
+            }
+            for (String de : segments.get(i)) {
+                for (String vers : segments.get(i + 1)) {
+                    arcs.add(new ScenarioDef.Arc(de, vers, List.copyOf(etiquettes), max, delegation, n));
                 }
             }
         }
-        return new ScenarioDef(id, titre, architecture, entree, agents, options, corps, fichier, erreurs);
     }
 
-    @SuppressWarnings("unchecked")
-    private static ChampEntree champ(Map<String, Object> c, List<String> erreurs) {
-        String id = texte(c.get("id"), "");
-        if (id.isBlank()) { erreurs.add("Un champ d'entrée n'a pas d'« id »."); }
-        String type = texte(c.get("type"), "texte");
-        List<ChampEntree.Option> options = new ArrayList<>();
-        if (c.get("options") instanceof List<?> l) {
-            for (Object o : l) {
-                String s = String.valueOf(o);
-                int i = s.indexOf('|');
-                options.add(i < 0 ? new ChampEntree.Option(s, s) : new ChampEntree.Option(s.substring(0, i).trim(), s.substring(i + 1).trim()));
-            }
+    private static List<String> noms(String s) {
+        List<String> r = new ArrayList<>();
+        for (String p : s.split(",")) {
+            String nom = norm(p);
+            if (nom.equals("entree") || nom.equals("debut") || nom.equals("start")) { nom = ScenarioDef.ENTREE; }
+            if (!nom.isEmpty()) { r.add(nom); }
         }
-        if (type.equals("choix") && options.isEmpty()) { erreurs.add("Le champ « " + id + " » est de type choix sans « options »."); }
-        return new ChampEntree(id, texte(c.get("libelle"), id), type, texte(c.get("defaut"), ""), options);
-    }
-
-    private static String texte(Object o, String defaut) {
-        return o == null ? defaut : String.valueOf(o).trim();
-    }
-
-    private static String premiereLigne(String s) {
-        return s == null ? "" : s.lines().findFirst().orElse(s);
+        return r;
     }
 }

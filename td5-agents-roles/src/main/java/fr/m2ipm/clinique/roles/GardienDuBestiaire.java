@@ -1,6 +1,8 @@
 package fr.m2ipm.clinique.roles;
 
+import java.util.List;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.tool.ToolCallback;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -21,11 +23,13 @@ public class GardienDuBestiaire {
 
     private final ChatClient client;
     private final ChatClient structurant;
+    /** Pour les scénarios : un client construit à la demande avec les seuls outils que le .md autorise (null dans les tests). */
+    private final ChatClient.Builder base;
 
     @Autowired
     public GardienDuBestiaire(ChatClient.Builder builder, OutilsBestiaire bestiaire,
                               @org.springframework.beans.factory.annotation.Value("${agents.sortie-en-deux-temps:false}") boolean deuxTemps) {
-        this(construire(builder, bestiaire), deuxTemps ? builder.clone().defaultAdvisors(fr.m2ipm.clinique.agent.ComptageJetons.advisor()).build() : null);
+        this(construire(builder, bestiaire), deuxTemps ? builder.clone().defaultAdvisors(fr.m2ipm.clinique.agent.ComptageJetons.advisor()).build() : null, builder);
     }
 
     private static ChatClient construire(ChatClient.Builder builder, OutilsBestiaire bestiaire) {
@@ -36,9 +40,23 @@ public class GardienDuBestiaire {
 
     public GardienDuBestiaire(ChatClient client) { this(client, null); }
 
-    public GardienDuBestiaire(ChatClient client, ChatClient structurant) { this.client = client; this.structurant = structurant; }
+    public GardienDuBestiaire(ChatClient client, ChatClient structurant) { this(client, structurant, null); }
+
+    private GardienDuBestiaire(ChatClient client, ChatClient structurant, ChatClient.Builder base) {
+        this.client = client;
+        this.structurant = structurant;
+        this.base = base;
+    }
 
     public Critique examiner(String espece, Diagnostic d) {
+        return examiner(espece, d, null);
+    }
+
+    /** @param outils les seuls outils autorisés (scénario .md) ; null = l'outil Wikipédia par défaut du gardien. */
+    public Critique examiner(String espece, Diagnostic d, List<ToolCallback> outils) {
+        ChatClient client = outils == null || base == null ? this.client
+                : base.clone().defaultSystem(SYSTEME).defaultToolCallbacks(outils.toArray(new ToolCallback[0]))
+                        .defaultAdvisors(fr.m2ipm.clinique.agent.ComptageJetons.advisor()).build();
         String message = "Créature : " + d.creature() + " (" + espece + ")\n"
                 + "Diagnostic : " + d.diagnostic() + "\n"
                 + "Traitements proposés : " + String.join(" ; ", d.traitements()) + "\n"

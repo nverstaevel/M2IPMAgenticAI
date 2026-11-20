@@ -2,12 +2,11 @@ package fr.m2ipm.clinique.scenario;
 
 import fr.m2ipm.clinique.agent.AgentReactService;
 import fr.m2ipm.clinique.agent.ComptageJetons;
+import fr.m2ipm.clinique.agent.MotifArret;
 import fr.m2ipm.clinique.agent.SuiviOutils;
-import fr.m2ipm.clinique.ai.OutilsClinique;
 import fr.m2ipm.clinique.roles.*;
 import java.util.Map;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.support.ToolCallbacks;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -15,21 +14,23 @@ import org.springframework.context.annotation.Configuration;
  * Agents d'exemple, référencés par les scénarios fournis. Chaque bean est un {@link Agent} : c'est le modèle à imiter pour écrire
  * les vôtres (voir SCENARIOS.md). Règles à retenir :
  * <ul>
+ *   <li>les outils d'un agent sont ceux que le scénario .md lui autorise : ils arrivent dans {@code entree.outils()} et se passent
+ *       au client avec {@code .toolCallbacks(entree.outilsAutorises())} ; ne câblez pas d'outils en dur dans un agent qui doit être testable ;</li>
  *   <li>un client ChatClient construit avec {@code ComptageJetons.advisor()} voit ses appels et ses tokens comptés dans le graphe ;</li>
- *   <li>des outils passés par {@code SuiviOutils.envelopper(ToolCallbacks.from(...))} apparaissent comme nœuds enfants de l'agent.</li>
+ *   <li>les outils reçus apparaissent comme nœuds enfants de l'agent, sans rien faire.</li>
  * </ul>
  */
 @Configuration
 public class AgentsExemples {
 
-    // ---- boucle-critique : le duo vétérinaire / gardien du TD5 -------------------------------------------------------
+    // ---- le duo vétérinaire / gardien du TD5 -------------------------------------------------------------------------
 
     @Bean("veterinaire")
     Agent veterinaire(VeterinaireAgent veterinaire, CasBestiaireRepository cas) {
         return e -> {
             CasBestiaire c = cas(cas, e);
             ProfilActeur profil = ProfilActeur.valueOf(e.donnee("profil", "PRUDENT"));
-            Diagnostic d = veterinaire.proposer(c, profil, e.retours());
+            Diagnostic d = veterinaire.proposer(c, profil, e.retours(), e.outils());
             return Resultat.de("Diagnostic : " + d.diagnostic() + "\nTraitements : " + String.join(" ; ", d.traitements())
                     + "\nJustification : " + d.justification(), d);
         };
@@ -40,7 +41,7 @@ public class AgentsExemples {
         return e -> {
             CasBestiaire c = cas(cas, e);
             Diagnostic d = (Diagnostic) e.proposition().valeur();
-            Critique critique = gardien.examiner(c.espece(), d);
+            Critique critique = gardien.examiner(c.espece(), d, e.outils());
             Decision decision = critique.verdict() == null ? Decision.DOUTE : Decision.valueOf(critique.verdict().name());
             return Resultat.avis(decision, critique.objections()).avecValeur(critique);
         };
@@ -51,17 +52,19 @@ public class AgentsExemples {
         return cas.parId(id).orElseThrow(() -> new IllegalArgumentException("Cas inconnu : " + id));
     }
 
-    // ---- react : l'agent ReAct du TD4 possède son graphe ------------------------------------------------------------
+    // ---- l'agent ReAct du TD4 : il possède la boucle, le scénario lui donne le droit d'utiliser des outils --------------
 
     @Bean("react")
     Agent react(AgentReactService service) {
         return e -> {
             int max = Integer.parseInt(e.donnee("maxEtapes", "8"));
-            return Resultat.texte(service.executer(e.runId(), e.texte(), max).reponse());
+            var res = service.executerSous(e.runId(), e.id(), e.texte(), max, SuiviOutils.sansSuivi(e.outilsAutorises()));
+            Resultat r = Resultat.texte(res.reponse());
+            return res.motif() == MotifArret.REPONSE_FINALE ? r : r.avecEtiquette(res.motif().name());
         };
     }
 
-    // ---- superviseur : planificateur, travailleurs, synthèse ---------------------------------------------------------
+    // ---- planificateur, travailleurs, synthèse : le superviseur du TD5 -------------------------------------------------
 
     @Bean("planificateur")
     Agent planificateur(ChatClient.Builder builder) {
@@ -76,32 +79,23 @@ public class AgentsExemples {
         };
     }
 
-    @Bean("travailleur-dossier")
-    Agent travailleurDossier(ChatClient.Builder builder, OutilsClinique outils) {
-        return travailleur(builder, "Tu es DossierWorker : tu réponds avec tes outils, sans rien inventer.", outils);
-    }
-
-    @Bean("travailleur-pharmacie")
-    Agent travailleurPharmacie(ChatClient.Builder builder, OutilsPharmacie outils) {
-        return travailleur(builder, "Tu es PharmacieWorker : tu réponds avec tes outils, sans rien inventer.", outils);
-    }
-
-    @Bean("travailleur-agenda")
-    Agent travailleurAgenda(ChatClient.Builder builder, OutilsAgenda outils) {
-        return travailleur(builder, "Tu es AgendaWorker : tu réponds avec tes outils ; tu ne fais que PROPOSER un événement.", outils);
-    }
-
-    private static Agent travailleur(ChatClient.Builder builder, String systeme, Object outils) {
-        ChatClient client = builder.clone().defaultSystem(systeme)
-                .defaultToolCallbacks(SuiviOutils.envelopper(ToolCallbacks.from(outils)))
-                .defaultAdvisors(ComptageJetons.advisor()).build();
-        return e -> Resultat.texte(client.prompt().user(e.texte()).toolContext(Map.of("conversationId", e.runId())).call().content());
+    /** Un travailleur générique : ses outils sont ceux que le .md lui autorise (« dossier = travailleur : outils dossier »). */
+    @Bean("travailleur")
+    Agent travailleur(ChatClient.Builder builder) {
+        ChatClient client = builder.clone().defaultAdvisors(ComptageJetons.advisor()).build();
+        return e -> Resultat.texte(client.prompt()
+                .system("Tu es le travailleur « " + e.noeud() + " » de la clinique. Tu réponds avec tes outils, sans rien inventer ; "
+                        + "si tu n'as pas l'outil qu'il faut, dis-le. Tu ne fais que PROPOSER une consultation ou un événement.")
+                .user(e.texte())
+                .toolCallbacks(e.outilsAutorises())
+                .toolContext(Map.of("conversationId", e.runId(), "roles", "ROLE_PERSONNEL"))
+                .call().content());
     }
 
     @Bean("synthese")
     Agent synthese(ChatClient.Builder builder) {
         ChatClient client = builder.clone().defaultAdvisors(ComptageJetons.advisor()).build();
-        return e -> Resultat.texte(client.prompt().user("Demande : " + e.texte() + "\nRéponses des travailleurs :\n"
+        return e -> Resultat.texte(client.prompt().user("Demande : " + e.donnee("demande", e.texte()) + "\nRéponses des travailleurs :\n"
                 + e.proposition().texte() + "Rédige la réponse finale pour l'utilisateur, sans inventer d'information.").call().content());
     }
 }

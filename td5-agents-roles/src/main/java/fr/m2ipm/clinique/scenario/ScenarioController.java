@@ -16,10 +16,11 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/agent/scenarios")
 public class ScenarioController {
 
-    public record Resume(String id, String titre, String architecture, String fichier, boolean valide, List<String> erreurs,
+    public record Resume(String id, String titre, String forme, String fichier, boolean valide, List<String> erreurs,
                          List<ChampEntree> entree) {}
 
-    public record Detail(Resume resume, String description, List<Evenement> apercu, List<String> agentsDisponibles) {}
+    public record Detail(Resume resume, String description, List<Evenement> apercu, List<String> agentsDisponibles,
+                         List<String> groupesDOutils, List<String> outilsDisponibles) {}
 
     private final ScenarioLoader chargeur;
     private final Orchestrateur orchestrateur;
@@ -39,7 +40,8 @@ public class ScenarioController {
         ScenarioDef d = trouver(id);
         List<String> erreurs = orchestrateur.valider(d);
         List<Evenement> apercu = erreurs.isEmpty() ? orchestrateur.apercu(d) : List.of();
-        return new Detail(resume(d), d.description(), apercu, orchestrateur.agentsDisponibles());
+        return new Detail(resume(d), d.description(), apercu, orchestrateur.agentsDisponibles(),
+                orchestrateur.outilsDisponibles().groupes(), orchestrateur.outilsDisponibles().outils());
     }
 
     @PostMapping("/{id}/lancer")
@@ -56,7 +58,7 @@ public class ScenarioController {
 
     private Resume resume(ScenarioDef d) {
         List<String> erreurs = orchestrateur.valider(d);
-        return new Resume(d.id(), d.titre(), d.architecture(), d.fichier(), erreurs.isEmpty(), erreurs, d.entree());
+        return new Resume(d.id(), d.titre(), orchestrateur.forme(d), d.fichier(), erreurs.isEmpty(), erreurs, d.entree());
     }
 
     private ScenarioDef trouver(String id) {
