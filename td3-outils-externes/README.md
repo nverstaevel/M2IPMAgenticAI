@@ -80,3 +80,6 @@ le statut, la durée et l'exception éventuelle. À essayer en premier quand le 
    `-Dspring.ai.openai.chat.model=<nom>` pour un autre (liste : `GET https://api.groq.com/openai/v1/models` avec la clé). Il doit gérer l'appel d'outils.
 
 **Non vérifié** : aucun appel réel à l'API depuis l'environnement de rédaction.
+
+## Agenda réel (extension)
+Par défaut `agenda.mode=simule`. Pour Google Agenda : agenda de test vide, partagé avec l'adresse du compte de service (**À COMPLÉTER PAR L'ENSEIGNANT**), puis `agenda.mode: google`, `agenda.google.calendar-id` et `agenda.google.credentials-file` dans `application-local.yml`. Le fichier de clés JSON est distribué en séance et ne va jamais dans Git.
