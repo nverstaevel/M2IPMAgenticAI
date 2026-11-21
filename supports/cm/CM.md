@@ -1365,7 +1365,7 @@ Lisible en cas d’erreurUn message que le modèle peut utiliser pour se corrige
 - L’outil crée une proposition, il n’écrit pas dans l’agenda
 - La confirmation passe par un point d’entrée réservé au personnel
 - Fuseaux horaires : une date sans fuseau est une source d’erreurs
-- Un agenda de test par binôme, aucune invitation envoyée
+- Un agenda de test par étudiant (créé par lui-même), aucune invitation envoyée
 
 > Note : Même schéma que la confirmation du TD2, appliqué à une source externe.
 
