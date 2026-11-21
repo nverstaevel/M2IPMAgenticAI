@@ -1,6 +1,6 @@
 # Supports du cours
 
-Supports de « IA agentiques avec Spring AI » (M2 MIAGE IPM). Ordre des séances : CM1, TD1, TD2, CM2, TD3, TD4, TD5, CM3, TD6, CM4 (évaluation de TD, 1 h sur machine, sans slide).
+Supports de « IA agentiques avec Spring AI » (M2 MIAGE IPM). Ordre des séances : CM1, TD1, TD2, CM2, TD3, TD4, TD5, CM3, TD6. Deux évaluations sont prévues (à mi-parcours et en fin d'UE), forme à fixer.
 
 | Fichier | Contenu |
 |---|---|

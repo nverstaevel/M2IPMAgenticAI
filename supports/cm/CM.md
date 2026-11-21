@@ -12,7 +12,7 @@ Version texte des 142 slides, dans l'ordre de présentation. Les sources (HTML, 
 M2 MIAGE IPM · Java 21, Spring Boot 4, Spring AI 2.0
 Nicolas Verstaevel · Université Toulouse Capitole · IRIT, équipe SMAC
 
-> Note : Trois supports de cours magistral, un par séance qui précède des TD. Le CM4 est l’évaluation de TD et n’a pas de support ici. Les extraits de code sont des repères : la documentation de la version fournie fait foi.
+> Note : Trois supports de cours magistral, un par séance qui précède des TD. Les extraits de code sont des repères : la documentation de la version fournie fait foi.
 
 ### Une application, six TD, trois cours  
 *LE PARCOURS*  
@@ -29,9 +29,8 @@ Nicolas Verstaevel · Université Toulouse Capitole · IRIT, équipe SMAC
 CM1
 CM2
 CM3
-CM4
 
-> Note : Chaque TD copie le dossier du précédent : on construit une seule application, la clinique des créatures fantastiques. Au TD6, une seconde application (le jeu, dossier jeu-bestiaire) est fournie et reliée par MCP. Les étudiants partent du dépôt M2IPMAgenticAI_Student. Le CM4 est l’évaluation de TD (1 h sur machine).
+> Note : Chaque TD copie le dossier du précédent : on construit une seule application, la clinique des créatures fantastiques. Au TD6, une seconde application (le jeu, dossier jeu-bestiaire) est fournie et reliée par MCP. Les étudiants partent du dépôt M2IPMAgenticAI_Student.
 
 ### Comment faire un TD sans l’enseignant  
 *MÉTHODE · TD EN AUTONOMIE*  
@@ -44,7 +43,7 @@ CM4
 5. Livrableet journal
 Point de contrôleUne vérification que vous faites seul : une commande, une page, un test. Il échoue ? Ne continuez pas.
 En cas de blocageChaque sujet a un tableau symptôme, cause fréquente, que faire. Lisez-le avant de demander de l’aide.
-Journal5 à 10 lignes par TD : il prépare la comparaison du TD6 et l’évaluation.
+Journal5 à 10 lignes par TD : il prépare la comparaison du TD6.
 Les six sujets suivent le même plan : une fois lu l’un, vous savez lire les autres.
 
 > Note : Présenter ce plan une seule fois, au début du cours. Les sujets sont dans le document « Sujets de TD ».
@@ -86,9 +85,8 @@ Appeler un modèle, lui donner de la mémoire, des outils, et garder la main sur
 - Fin : après le TD6, avec une preuve par compétence
 - 19 compétences, six domaines
 - Un livrable, un test ou une ligne de journal fait preuve
-Les compétences marquées Outil, Trace ou Analyse critique reviennent à l’évaluation de TD.
 
-> Note : Le classeur de la matrice (feuilles Matrice, Échelle et Synthèse) se trouve ici : https://claude.ai/artifact/5DRhQYNfk9RNJjkzeaTG2N . Il faut le partager et le faire dupliquer ou exporter par les étudiants. Il sert à l’auto-évaluation, pas à la notation.
+> Note : Le classeur de la matrice (feuilles Matrice, Échelle et Synthèse) se trouve ici : https://claude.ai/artifact/5DRhQYNfk9RNJjkzeaTG2N . Il faut le partager et le faire dupliquer ou exporter par les étudiants. Il sert à l’auto-évaluation.
 
 
 ## Rappel Spring Boot avec l’exemple de la clinique
@@ -733,7 +731,7 @@ Selon la langueUn même texte peut coûter plus de tokens dans une langue que da
 
 Six limites à garder en tête quand on construit des agents.
 
-> Note : Cette partie sert de fil rouge d’esprit critique : les étudiants la retrouveront dans l’analyse critique du TD6 et à l’évaluation.
+> Note : Cette partie sert de fil rouge d’esprit critique : les étudiants la retrouveront dans l’analyse critique du TD6.
 
 ### Hallucinations : plausible n’est pas vrai  
 *CM1 · REGARD CRITIQUE*  
@@ -808,7 +806,7 @@ DépendanceUn service hébergé change de tarif, de version, parfois de comporte
 - Une trace d’agent suffit-elle à établir qui est responsable d’une erreur ?
 - À partir de quel coût ou de quel risque un agent n’est-il plus préférable à un workflow ?
 
-> Note : Laisser quelques minutes en petits groupes, puis une mise en commun. Ne pas conclure à leur place : ces questions reviennent à l’évaluation de TD sous forme d’analyse critique.
+> Note : Laisser quelques minutes en petits groupes, puis une mise en commun. Ne pas conclure à leur place.
 
 
 ## Différences entre web classique et IA agentique
@@ -1510,7 +1508,7 @@ TraceStore
 Catalogue d’échecsArgument inventé, boucle, mauvais outil, réponse sans source.
 Une trace se relit : on y repère l’étape où la boucle a dérivé. La page /agents la dessine pour vous.
 
-> Note : L’évaluation de TD demande d’analyser une trace de ce type. Insister sur la lecture : situer l’erreur, puis proposer un garde-fou précis.
+> Note : Insister sur la lecture : situer l’erreur, puis proposer un garde-fou précis.
 
 ### À la main ou celle du framework  
 *CM2 · DEUX BOUCLES*  
@@ -1956,7 +1954,6 @@ Protocole
 Ce que l’on relève
 Une moyenne sur trois parties n’est pas une preuve : on rapporte les écarts et on dit ce qu’ils ne démontrent pas.
 
-> Note : L’évaluation de TD (CM4) reprend ces gestes : lire une trace, corriger un outil ou un prompt, rédiger une courte analyse critique.
 
 ### Ce que ce jeu ne démontre pas  
 *CM3 · LIMITES*  
@@ -1989,7 +1986,7 @@ Une moyenne sur trois parties n’est pas une preuve : on rapporte les écarts e
 Parcours guidé
 Réussi si une partie complète se joue avec un scénario et si votre comparaison est chiffrée. Point de départ : dossiers td6-mcp-jeu et jeu-bestiaire du dépôt M2IPMAgenticAI_Student. Ressources, exemples, points de contrôle et dépannage : voir le sujet du TD6.
 
-> Note : C’est la préparation directe à l’évaluation de TD (CM4) : analyser une trace, corriger un outil, rédiger une analyse critique.
+> Note : Ce TD entraîne à lire une trace, corriger un outil et rédiger une analyse critique.
 
 ### L’application, du TD1 au TD6  
 *RÉCAPITULATIF · ARCHITECTURE*  

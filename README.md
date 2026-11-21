@@ -26,7 +26,7 @@ Les corrigés sont publics dans ce dépôt : pour les étudiants, utiliser le d�
 | `supports/sujets/` | Sujets de TD1 à TD6 et informations communes (Markdown, sans les notes enseignant) |
 | `supports/evaluation/` | `matrice-competences.md` : matrice de compétences distribuée aux étudiants (échelle, mode d'emploi, 19 compétences) |
 
-Le CM4 est l'évaluation de TD (1 h sur machine) : il n'a pas de support. Voir `supports/README.md`.
+Deux évaluations sont prévues (à mi-parcours et en fin d'UE) ; leur forme n'est pas encore fixée.
 
 ## Ouvrir les projets dans Spring Tools (Eclipse) ou IntelliJ
 
