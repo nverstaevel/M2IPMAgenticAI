@@ -1838,7 +1838,7 @@ Serveur MCP(jeu, /mcp)
 Moteurdu jeu
 1 · au démarrage : connexion et initialize
 2 · tools/list
-3 · 8 outils : nom, description, schéma
+3 · 9 outils : nom, description, schéma
 4 · ToolCallback utilisables par l’agent
 5 · le modèle choisit : examiner_patient(P03)
 6 · tools/call examiner_patient {idPatient}
@@ -1908,7 +1908,7 @@ Le jeu est fourni et ne change pas. Vous câblez le client : profil « jeu », g
 *CM3 · CONCEVOIR POUR JOUER*  
 `cm3-archi`
 
-- Un agent, les huit outils
+- Un agent, les neuf outils
 - Simple et peu coûteux
 - Mêmes risques : il peut commander et soigner sans relecture
 - Diagnosticien : observe, examine, propose un plan

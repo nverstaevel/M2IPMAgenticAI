@@ -6,7 +6,7 @@ Cumulatif sur le TD5. **Ne pas distribuer avant la fin du TD6.**
 
 - `spring-ai-starter-mcp-client` ; `application.properties` désactive le client MCP, le profil `jeu` (`application-jeu.properties`) l'active et déclare la connexion `jeu` (`${JEU_URL:http://localhost:8090}`).
 - `jeu/JeuMcp` : accès aux outils MCP du jeu (`outils()`, `connecte()`, `appeler()`, `etat()`).
-- `scenario/OutilsDisponibles` : nouveau groupe d'outils **`jeu`** (les 8 outils du serveur, résolus à l'usage) ; chaque outil est aussi utilisable par son nom.
+- `scenario/OutilsDisponibles` : nouveau groupe d'outils **`jeu`** (les 9 outils du serveur, résolus à l'usage) ; chaque outil est aussi utilisable par son nom.
 - `jeu/AgentsJeu` : agents `diagnosticien`, `gardien-jeu` (verdict structuré APPROUVE / DOUTE / REJETE, recopie le plan) et `apothicaire`.
 - `jeu/JoueurService` : une partie = une exécution de scénario par journée ; la fin de journée est forcée si l'agent ne la déclenche pas ; renvoie un bilan (score, guéris, morts, trésorerie, durée).
 - `jeu/JoueurController` : `GET /api/agent/jeu/outils`, `POST /api/agent/jeu/partie?scenario=&graine=`.

@@ -48,7 +48,7 @@ Chaque architecture se décrit dans un fichier `.md` (titre, agents, graphe en f
 
 ## Le TD6 : le jeu et MCP
 
-`jeu-bestiaire` est une application Spring Boot indépendante (patients à diagnostiquer, pharmacie, trésorerie, 5 jours, score) qui publie huit outils par MCP (Streamable HTTP, `http://localhost:8090/mcp`). Les étudiants n'y touchent pas : ils branchent la clinique dessus (`td6-mcp-jeu`) et conçoivent l'architecture d'agents qui joue.
+`jeu-bestiaire` est une application Spring Boot indépendante (patients à diagnostiquer, pharmacie, trésorerie, 5 jours, score) qui publie neuf outils par MCP (Streamable HTTP, `http://localhost:8090/mcp`). Les étudiants n'y touchent pas : ils branchent la clinique dessus (`td6-mcp-jeu`) et conçoivent l'architecture d'agents qui joue.
 
 ```bash
 mvn -f jeu-bestiaire/pom.xml spring-boot:run                      # terminal 1 : le jeu (8090)
