@@ -1852,7 +1852,7 @@ Moteurdu jeu
 `cm3-jeu`
 
 - 5 jours, 3 nouveaux patients par jour : dragonnet, loup-garou, vampire, licorne
-- 5 points d’action par jour : examiner ou soigner en coûte un
+- 8 points d’action par jour : examiner ou soigner en coûte un
 - Chaque espèce a deux maladies aux symptômes communs ; un examen révèle le signe distinctif
 - Un patient non soigné perd 15 PV par jour et meurt à 0
 - La pharmacie a un stock limité ; une commande arrive le lendemain
