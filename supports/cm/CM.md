@@ -1924,6 +1924,25 @@ Pistes : un triage qui trie les patients, une mémoire d’une journée à l’a
 
 > Note : Les deux architectures sont deux fichiers .md. Chaque idée des étudiants est un nouveau fichier : on compare les scores. Le point à faire remarquer : le rôle gardien n’a que fiche_espece et consulter_pharmacie, il ne peut donc pas agir.
 
+
+### Troisième architecture : un gardien en code  
+*CM3 · CONCEVOIR POUR JOUER*  
+`cm3-carnet`
+
+- Archiviste : lit le carnet puis les fiches, examine peu, rend un plan « Pxx : médicament »
+- Gardien en Java, sans modèle : vérifie le plan contre les fiches et la pharmacie
+- Apothicaire : exécute le plan validé et termine la journée
+- Décider d’après ce qui est déjà connu, avant de dépenser des points à examiner
+- Un critique placé avant l’action irréversible
+- Aucune source inventée, aucun jeton, un verdict toujours le même
+- Mais il ne vérifie que ce qu’on a su écrire en règles
+Trois rôles
+entrée -> archiviste -> gardiengardien -> archiviste : REJETE (max 2)gardien -> apothicaire : APPROUVE, DOUTE, REJETE
+Ce qu’on veut mesurer
+À comparer sur les mêmes graines : gardien-modèle contre gardien-code, en score, en jetons et en temps.
+
+> Note : Cette architecture vient d’une trace réelle : un gardien modèle a cité une page Wikipédia qui ne disait pas ce qu’il affirmait, puis son erreur a contaminé le tour suivant du vétérinaire. Dans le jeu, un critique placé après l’action ne sert à rien : il faut le mettre avant, et il n’a pas besoin d’être un modèle. Montrer GardienRegles : une méthode statique pure, testée sans jeu ni modèle. Question à poser : qu’est-ce que ce gardien ne sait pas vérifier ? Il ne choisit pas le meilleur remède, il écarte les erreurs.
+
 ### Brancher un serveur MCP, c’est lui faire confiance  
 *CM3 · CONFIANCE*  
 `cm3-confiance`
