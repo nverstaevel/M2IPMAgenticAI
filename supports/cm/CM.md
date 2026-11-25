@@ -1856,6 +1856,7 @@ Moteurdu jeu
 - Chaque espèce a deux maladies aux symptômes communs ; un examen révèle le signe distinctif
 - Un patient non soigné perd 15 PV par jour et meurt à 0
 - La pharmacie a un stock limité ; une commande arrive le lendemain
+- Le carnet de soins garde ce qui a été examiné ou essayé (lisible par MCP)
 - Argent colloïdal : toxique pour un loup-garou
 - Gousse d’ail : toxique pour un vampire
 - Tisane : redonne des PV mais ne soigne pas
@@ -1864,7 +1865,7 @@ Les règles
 Ce qui est piégé
 Score : 100 par guérison + trésorerie + 2 × réputation − 150 par mort. Même graine, mêmes patients.
 
-> Note : La graine rend les parties comparables : deux architectures jouent exactement les mêmes patients. La page d’accueil du jeu (port 8090) montre la partie en direct : les créatures arrivent à pied dans la salle d’attente, chacune avec un compte à rebours en jours restants. On peut aussi y jouer à la main : c’est la référence humaine du TD6. À montrer en démo.
+> Note : La graine rend les parties comparables : deux architectures jouent exactement les mêmes patients. La page d’accueil du jeu (port 8090) montre la partie en direct : les créatures arrivent à pied dans la salle d’attente, chacune avec un compte à rebours en jours restants. On peut aussi y jouer à la main : c’est la référence humaine du TD6. À montrer en démo : la page /pilotage de la clinique lance une partie avec des règles fixes ou avec vos agents, règle la vitesse et montre les appels d’outils du contrôleur en direct.
 
 ### Ce que le serveur MCP publie  
 *CM3 · LES OUTILS DU JEU*  
@@ -1875,13 +1876,14 @@ Score : 100 par guérison + trésorerie + 2 × réputation − 150 par mort. Mê
 | etat_clinique | jour, points, trésorerie, score | gratuit |
 | lister_patients | symptômes, PV, urgence, note du propriétaire | gratuit |
 | fiche_espece | maladies, remèdes, médicaments toxiques | gratuit |
+| carnet_soins | effets déjà observés et signes relevés (mémoire de la partie) | gratuit |
 | consulter_pharmacie | prix, stock, commandes en cours | gratuit |
-| examiner_patient | révèle le signe distinctif | 1 point, 5 or |
+| examiner_patient | révèle le signe distinctif (noté au carnet) | 1 point, 5 or |
 | soigner | administre un médicament | 1 point |
 | commander | 1 à 20 unités, livrées demain | prix payé |
 | fin_de_journee | fait avancer le monde | gratuit |
 
-> Note : Quatre outils de lecture, quatre outils d’action. Cette séparation sert à la conception de l’architecture : un rôle qui n’observe que ne peut pas faire de dégâts.
+> Note : Cinq outils de lecture, quatre outils d’action. Cette séparation sert à la conception de l’architecture : un rôle qui n’observe que ne peut pas faire de dégâts.
 
 ### Deux applications, un protocole  
 *CM3 · ARCHITECTURE*  
