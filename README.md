@@ -64,3 +64,7 @@ Le jeu a une page animée sur http://localhost:8090 (salle d'attente, jours rest
 
 Le workflow GitHub Actions (`.github/workflows/ci.yml`) lance `mvn verify` sur chaque dossier.
 Les tests utilisent un modèle de chat simulé et un agenda simulé : aucune clé d'API ni compte Google n'est nécessaire.
+
+## Crédits et usage de l'IA
+
+Ce cours a été conçu par Nicolas Verstaevel avec l'aide d'une IA générative : fournisseur **Anthropic**, modèle **Claude Sonnet 5.5** (`claude-sonnet-5-5`) pour la phase de finalisation, via l'application Claude (session agentique). Sur la dernière phase de travail, seule mesurée : 115 requêtes, 107 460 tokens de sortie, 440 083 tokens écrits en cache et 29 744 221 relus depuis le cache. Le total du cours est plus élevé. Détails sur la page « Crédits et usage de l'IA » du site (`site/content/credits.md`).
